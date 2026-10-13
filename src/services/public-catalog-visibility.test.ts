@@ -120,4 +120,13 @@ describe("public catalog visibility across sessions", () => {
       expect(r.motorcycles.find((m) => m.slug === row.slug)).toBeUndefined();
     expect(r.motorcycles.find((m) => m.slug === rows[0].slug)).toBeDefined();
   });
+  it("isolated test storefront hides published synthetic fixtures without deleting them", async () => {
+    vi.stubEnv("KJM_PAYMONGO_TEST", "true");
+    rows.push({ ...rows[0], id: "synthetic", slug: "synthetic-p9-concurrency-fixture" });
+    try {
+      const result = await getPublicMotorcycleCatalog();
+      expect(result.motorcycles.map(model => model.slug)).toEqual([rows[0].slug]);
+      expect(rows.some(row => row.id === "synthetic")).toBe(true);
+    } finally { rows.pop(); vi.unstubAllEnvs(); }
+  });
 });

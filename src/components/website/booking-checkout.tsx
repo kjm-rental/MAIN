@@ -39,6 +39,7 @@ import { formatPhp, formatCentavos } from "@/lib/currency";
 import { TurnstileChallenge } from "@/components/website/turnstile-challenge";
 import type { Json } from "@/types/database";
 import type { MotorcycleModel } from "@/types/motorcycle";
+import { PaymentMethodChoice } from "./payment-method-choice";
 
 type Settings = {
   timezone: string;
@@ -110,6 +111,8 @@ export function BookingCheckout({
   preselected = false,
   settings,
   configured,
+  submissionEnabled = configured,
+  paymentTestMode = false,
   extras,
   depositOptions,
 }: {
@@ -118,6 +121,8 @@ export function BookingCheckout({
   preselected?: boolean;
   settings: Settings | null;
   configured: boolean;
+  submissionEnabled?: boolean;
+  paymentTestMode?: boolean;
   extras: BookingExtra[];
   depositOptions: DepositOptions | null;
 }) {
@@ -158,6 +163,41 @@ export function BookingCheckout({
   });
   const [reservationStatus, setReservationStatus] = useState("");
   const [draftBookingId, setDraftBookingId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "online">("cash");
+  const [onlineMethods, setOnlineMethods] = useState<("card" | "qrph")[]>([]);
+  const [onlineEnabled, setOnlineEnabled] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const onlinePaymentKey = useRef(crypto.randomUUID());
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/paymongo/methods", { cache: "no-store" })
+      .then(response => response.json()).then(data => {
+        if (active && Array.isArray(data.methods)) {
+          setOnlineMethods(data.methods.filter((method: unknown) => method === "card" || method === "qrph"));
+          setOnlineEnabled(data.onlineEnabled === true);
+        }
+      }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  async function payOnline(id: string) {
+    if (!onlineEnabled) { setPaymentMessage("Online checkout is not available yet."); return; }
+    setBusy(true);
+    setPaymentMessage("");
+    try {
+      const response = await fetch("/api/paymongo/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: id, idempotencyKey: onlinePaymentKey.current }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error("Online checkout is unavailable. Your reservation is saved; please try again later.");
+      if (typeof result.checkoutUrl === "string") {
+        const destination = new URL(result.checkoutUrl);
+        if (destination.protocol !== "https:" || destination.hostname !== "checkout.paymongo.com" || destination.port || destination.username || destination.password) throw new Error("Secure checkout is unavailable.");
+        window.location.assign(destination.href);
+      } else setPaymentMessage(result.status === "paid" ? "Payment verified. View your booking for details." : "Your payment is awaiting verification. Please check your booking status.");
+    } catch (e) { setPaymentMessage(e instanceof Error ? e.message : "Online checkout is unavailable."); }
+    finally { setBusy(false); }
+  }
   const [depositOption, setDepositOption] = useState(() =>
     depositOptions?.cash_enabled && !depositOptions.id_enabled ? "cash" : "",
   );
@@ -326,9 +366,9 @@ export function BookingCheckout({
     }
   }
   async function submit() {
-    if (!configured) {
+    if (!configured || !submissionEnabled) {
       setError(
-        "Online booking is not open yet. Please contact KJM to plan your ride.",
+        "Reservation submission is unavailable. You can review your booking details without creating a reservation.",
       );
       return;
     }
@@ -472,6 +512,11 @@ export function BookingCheckout({
         if (row.error) throw row.error;
         setUploadProgress((v) => ({ ...v, completed: v.completed + 1 }));
       }
+      // Advisory checks never delay or change a successfully saved reservation.
+      void fetch(`/api/verification/${booking.booking_id}/prescreen`, {
+        method: "POST",
+        keepalive: true,
+      }).catch(() => undefined);
       const finalized = await supabase.rpc("finalize_booking_request", {
         p_booking_id: booking.booking_id,
         p_terms_version: acceptedTermsVersion!,
@@ -496,6 +541,10 @@ export function BookingCheckout({
           : current,
       );
       setStep(5);
+      if (paymentMethod === "online") {
+        if (finalized.data[0].booking_status === "confirmed") await payOnline(booking.booking_id);
+        else setPaymentMessage("Your booking requires approval before online payment is available.");
+      }
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Reservation submission failed.",
@@ -535,6 +584,14 @@ export function BookingCheckout({
                 </div>
               </div>
             )}
+            {configured && !submissionEnabled && (
+              <p role="status" className="journey-launch-notice">
+                You can complete and review the form. Reservation submission is disabled for this local preview.
+              </p>
+            )}
+            {paymentTestMode && <p role="status" className="journey-launch-notice">
+              Local TEST session. Use the payment simulator; do not scan or pay QR codes. No production booking or payment records are used.
+            </p>}
             {step === 0 && (
               <div>
                 <Heading
@@ -965,6 +1022,7 @@ export function BookingCheckout({
                   title="Review & Confirm"
                   text="Check your reservation before confirming."
                 />
+                <PaymentMethodChoice value={paymentMethod} methods={onlineMethods} onlineEnabled={onlineEnabled} disabled={busy} onChange={setPaymentMethod} />
                 <div className="minimal-review-ride">
                   <MotorcycleVisual
                     model={motorcycle.model}
@@ -1017,7 +1075,7 @@ export function BookingCheckout({
                         ? `${formatCentavos(quote.total_centavos)} — ${quote.pricing_units} unit(s) at ${formatPhp(quote.daily_rate_php)}/day`
                         : `${formatPhp(estimate)} estimated; server quote required`,
                     ],
-                    ["Payment Method", "CASH ON PICKUP"],
+                    ["Payment Method", paymentMethod === "online" ? "Pay Online" : "Cash on Pickup"],
                     [
                       "Security deposit option",
                       depositOption === "cash"
@@ -1148,7 +1206,7 @@ export function BookingCheckout({
                         : "Pending manual approval",
                     ],
                     ["Document verification", "Pending KJM review"],
-                    ["Payment", "CASH ON PICKUP · Unpaid"],
+                    ["Payment", paymentMethod === "online" ? "Online · Awaiting verification" : "Cash on Pickup · Unpaid"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -1187,6 +1245,14 @@ export function BookingCheckout({
                 )}
               </div>
             )}
+            {step === 5 && paymentMethod === "online" && (
+              <div className="mt-5 space-y-3 rounded-2xl border border-deep-teal/15 p-4">
+                {paymentMessage && <p role="status" className="text-muted text-sm leading-6">{paymentMessage}</p>}
+                {reservationStatus === "confirmed" && <button type="button" disabled={busy} onClick={() => void payOnline(bookingId)} className="bg-ocean min-h-11 rounded-full px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
+                  {busy ? "Opening secure checkout…" : "Continue to secure checkout"}
+                </button>}
+              </div>
+            )}
             {error && (
               <p
                 role="alert"
@@ -1223,6 +1289,7 @@ export function BookingCheckout({
                 <button
                   disabled={
                     !configured ||
+                    !submissionEnabled ||
                     busy ||
                     !hasRequiredBookingAcceptance(
                       consented,
@@ -1274,8 +1341,8 @@ export function BookingCheckout({
           )}
           <div className="p-5">
             <p className="bg-sand/60 text-deep-teal mb-5 rounded-xl p-4 text-sm leading-6">
-              <strong className="block">Payment Method · CASH ON PICKUP</strong>
-              Pay your rental amount in cash when collecting your motorcycle.
+              <strong className="block">{paymentMethod === "online" ? "Pay Online" : "Cash on Pickup"}</strong>
+              {paymentMethod === "online" ? "Complete your rental payment on secure checkout. Your security deposit is handled at pickup." : "Pay your rental amount in cash when collecting your motorcycle."}
             </p>
             <p className="text-ocean text-xs font-extrabold tracking-wider uppercase">
               Your rental

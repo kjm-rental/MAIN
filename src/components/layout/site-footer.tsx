@@ -119,7 +119,7 @@ export function SiteFooter() {
                 href="/privacy"
                 className="footer-link inline-flex min-h-11 items-center text-sm"
               >
-                Privacy draft
+                Privacy Policy
               </Link>
             </li>
             <li>

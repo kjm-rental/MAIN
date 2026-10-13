@@ -22,6 +22,7 @@ export function BookingDateStage({
   const [active, setActive] = useState<"pickup" | "return">("pickup");
   return (
     <div className="journey-dates">
+      <p className="text-muted text-sm leading-6">Confirm both your pickup and return date and time using “Use this time” to continue.</p>
       <div
         className="journey-date-switch"
         role="group"

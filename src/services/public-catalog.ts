@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { hasSupabasePublicConfig } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import type { MotorcycleModel } from "@/types/motorcycle";
+import testPublicCatalogSlugs from "@/lib/constants/test-public-catalog.json";
 
 type CatalogRow = Readonly<{
   id?: string;
@@ -112,7 +113,8 @@ export async function getPublicMotorcycleCatalog(
   try {
     const rows = (
       await (dependencies.fetchRows ?? fetchPublishedRows)()
-    ).filter((row) => row.is_published === true && row.archived_at === null);
+    ).filter((row) => row.is_published === true && row.archived_at === null &&
+      (process.env.KJM_PAYMONGO_TEST !== "true" || testPublicCatalogSlugs.includes(row.slug)));
     const mediaRows = dependencies.fetchMediaRows
       ? await dependencies.fetchMediaRows()
       : dependencies.fetchRows
@@ -129,7 +131,8 @@ export async function getPublicMotorcycleCatalog(
             )
           : [];
         const mappedMedia = mediaRows
-          .filter((item) => item.motorcycle_model_id === row.id)
+          .filter((item) => item.motorcycle_model_id === row.id &&
+            (process.env.KJM_PAYMONGO_TEST !== "true" || item.storage_path.startsWith("main-public-sync/")))
           .sort(
             (a, b) =>
               Number(b.is_primary) - Number(a.is_primary) ||

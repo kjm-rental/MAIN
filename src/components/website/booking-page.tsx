@@ -7,6 +7,7 @@ import { BookingCheckout } from "@/components/website/booking-checkout";
 import { Container } from "@/components/ui/container";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicMotorcycleCatalog } from "@/services/public-catalog";
+import testPublicExtraIds from "@/lib/constants/test-public-extras.json";
 
 export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
   const catalog = await getPublicMotorcycleCatalog();
@@ -73,7 +74,10 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
           motorcycles={catalog.motorcycles}
           settings={settingsError ? null : settings}
           configured={configured}
-          extras={extrasError ? [] : (extras ?? [])}
+          submissionEnabled={configured && process.env.KJM_LOCAL_BOOKING_DISABLED !== "true"}
+          paymentTestMode={process.env.KJM_PAYMONGO_TEST === "true"}
+          extras={extrasError ? [] : (extras ?? []).filter(extra =>
+            process.env.KJM_PAYMONGO_TEST !== "true" || (testPublicExtraIds as string[]).includes(extra.id))}
         />
       </Container>
     </main>

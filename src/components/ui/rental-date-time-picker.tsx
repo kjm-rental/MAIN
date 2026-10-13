@@ -49,10 +49,10 @@ export function RentalDateTimePicker({
     trigger = useRef<HTMLButtonElement>(null);
   const [internal, setInternal] = useState(""),
     [day, setDay] = useState(() =>
-      inline ? value?.slice(0, 10) || manilaDay(new Date()) : "",
+      inline ? value?.slice(0, 10) || after?.slice(0, 10) || manilaDay(new Date()) : "",
     ),
     [month, setMonth] = useState(() =>
-      inline ? value?.slice(0, 7) || manilaDay(new Date()).slice(0, 7) : "",
+      inline ? value?.slice(0, 7) || after?.slice(0, 7) || manilaDay(new Date()).slice(0, 7) : "",
     ),
     [selectedTime, setSelectedTime] = useState(value || ""),
     [loadedHours, setLoadedHours] = useState<unknown>(null),

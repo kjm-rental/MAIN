@@ -15,6 +15,9 @@
 
 # next.js
 /.next/
+/.next-paymongo-test/
+/.paymongo-test-reconcile.lock/
+/.paymongo-tools/
 /out/
 
 # production
@@ -148,3 +151,9 @@ next-env.d.ts
 /docs/time-picker/live-results.json
 /docs/time-picker/ui-results.json
 /docs/reservation-upgrade/browser-failure.txt
+
+# Disposable PayMongo verification data (never publish database snapshots)
+/docs/paymongo-live-verification/*.json
+/docs/paymongo-live-verification/*snapshot.sql
+/docs/paymongo-live-verification/production-apply.sql
+/docs/paymongo-stage3/*.json

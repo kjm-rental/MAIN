@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function BookingTestSignIn() {
+export function BookingTestSignIn({ localSession = false }: { localSession?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +33,15 @@ export function BookingTestSignIn() {
   }
   return (
     <form onSubmit={signIn} className="mt-7 space-y-4">
+      {localSession && <button type="button" disabled={busy} className="bg-ocean w-full rounded-xl px-5 py-3 font-bold text-white" onClick={async () => {
+        setBusy(true); setError("");
+        try {
+          const r = await fetch("/api/paymongo/local-sign-in", { method: "POST" });
+          if (!r.ok) throw new Error("Local test sign-in is unavailable.");
+          router.push("/book/honda-adv-160"); router.refresh();
+        } catch { setError("Local test sign-in is unavailable."); }
+        finally { setBusy(false); }
+      }}>Use authorized local test session</button>}
       <input
         required
         type="email"
@@ -63,7 +72,7 @@ export function BookingTestSignIn() {
         disabled={busy}
         className="bg-ocean disabled:bg-sand disabled:text-muted w-full rounded-xl px-5 py-3 font-bold text-white disabled:opacity-100"
       >
-        {busy ? "Verifying…" : "Sign in for synthetic testing"}
+        {busy ? "Verifying…" : localSession ? "Sign in for local testing" : "Sign in for synthetic testing"}
       </button>
     </form>
   );

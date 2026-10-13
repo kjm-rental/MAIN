@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-paymongo-test/**",
+    ".paymongo-tools/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

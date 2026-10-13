@@ -55,6 +55,10 @@ export function VerificationResubmission({
         },
       );
       if (registered.error) throw new Error(registered.error.message);
+      void fetch(`/api/verification/${bookingId}/prescreen`, {
+        method: "POST",
+        keepalive: true,
+      }).catch(() => undefined);
       setMessage(
         "Corrected document received. Manual verification is still required.",
       );

@@ -13,6 +13,11 @@ export default async function BookingStatusPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) notFound();
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
     .select(
