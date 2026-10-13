@@ -1,0 +1,828 @@
+.minimal-booking-shell {
+  background: #fff;
+  color: #153f40;
+  flex: 1;
+}
+.minimal-booking-header {
+  height: 68px;
+  max-width: 1000px;
+  margin: auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #edf0ef;
+}
+.minimal-booking-header > a:first-child {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1;
+}
+.minimal-brand-dot {
+  color: #386f68;
+}
+.minimal-booking-header small {
+  display: block;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  margin-top: 5px;
+  text-transform: uppercase;
+}
+.minimal-booking-header > a:last-child {
+  font-size: 11px;
+  color: #677c77;
+}
+.booking-journey-page {
+  background: #fff;
+  padding: 26px 0 44px;
+}
+.booking-journey-page > div {
+  max-width: 1000px;
+  padding: 0 24px;
+}
+.minimal-progress {
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+.minimal-progress > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #70817a;
+  margin-bottom: 10px;
+}
+.minimal-progress strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: #244c46;
+}
+.minimal-progress progress,
+.minimal-transfer progress {
+  display: block;
+  height: 3px;
+  width: 100%;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  appearance: none;
+  background: #edf1ed;
+}
+.minimal-progress progress::-webkit-progress-bar,
+.minimal-transfer progress::-webkit-progress-bar {
+  background: #edf1ed;
+}
+.minimal-progress progress::-webkit-progress-value,
+.minimal-transfer progress::-webkit-progress-value {
+  background: #2c6559;
+}
+.minimal-progress progress::-moz-progress-bar,
+.minimal-transfer progress::-moz-progress-bar {
+  background: #2c6559;
+}
+.minimal-booking-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 640px) minmax(0, 250px);
+  gap: 44px;
+  align-items: start;
+}
+.minimal-booking-content {
+  min-width: 0;
+}
+.minimal-booking-content h2 {
+  font-size: 25px;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  font-weight: 650;
+}
+.minimal-booking-content h2 + p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #7a8984;
+  margin-top: 8px;
+}
+.minimal-booking-content > div {
+  animation: minimal-enter 0.18s ease-out;
+}
+.minimal-booking-content > div > .mb-6 {
+  margin-bottom: 24px;
+}
+.minimal-selected-ride {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #edf0ed;
+  gap: 10px;
+}
+.minimal-selected-ride strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+.minimal-selected-ride span {
+  display: block;
+  font-size: 11px;
+  color: #7a8984;
+  margin-top: 4px;
+}
+.minimal-selected-ride button {
+  font-size: 10px;
+  color: #35685f;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+.journey-date-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.journey-date-switch button {
+  text-align: left;
+  padding: 13px 14px;
+  border: 1px solid #e4eae5;
+  border-radius: 8px;
+  min-height: 82px;
+  background: white;
+}
+.journey-date-switch button[aria-pressed="true"] {
+  border-color: #386b61;
+  background: #f8fbf8;
+}
+.journey-date-switch button:disabled {
+  opacity: 0.45;
+}
+.journey-date-switch span {
+  display: block;
+  font-size: 10px;
+  color: #668078;
+  margin-bottom: 8px;
+}
+.journey-date-switch strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.journey-date-switch svg {
+  width: 14px;
+  color: #a2b2ab;
+}
+.journey-calendar-caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.journey-calendar-caption svg {
+  width: 14px;
+}
+.journey-calendar-caption small {
+  margin-left: auto;
+  color: #8a9992;
+  font-size: 10px;
+  font-weight: 400;
+}
+.journey-calendar > div > label,
+.journey-calendar > div > p {
+  display: none;
+}
+.journey-calendar .rental-calendar {
+  border: 0;
+  background: #fff;
+  border-radius: 0;
+  padding: 0 !important;
+}
+.journey-calendar .rental-calendar > div:first-child {
+  display: none;
+}
+.journey-calendar .rental-calendar > div:nth-child(2) {
+  margin: 10px 0;
+  padding: 2px;
+  background: #fff;
+}
+.journey-calendar .rental-calendar > div:nth-child(2) > p {
+  font-size: 14px;
+  font-weight: 650;
+}
+.journey-calendar [data-calendar-day] {
+  min-height: 44px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.journey-calendar [data-calendar-day]:disabled {
+  color: #bac2be;
+  background: #fbfcfb;
+  text-decoration: line-through;
+}
+.journey-calendar [data-calendar-day][aria-pressed="true"]:not(:disabled) {
+  background: #245d50;
+  color: #fff;
+}
+.journey-calendar .rental-time-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 156px;
+  padding: 3px 1px;
+}
+.journey-calendar .rental-time-grid button {
+  border-radius: 6px;
+  min-height: 44px;
+  font-size: 12px;
+  background: #fff;
+  border-color: #dfe6e0;
+}
+.journey-calendar .rental-time-grid button[aria-pressed="true"] {
+  background: #245d50;
+  color: #fff;
+  border-color: #245d50;
+}
+.journey-calendar .rental-calendar > div:last-child {
+  margin-top: 14px;
+}
+.journey-calendar .rental-calendar > div:last-child button {
+  border-radius: 7px;
+  min-height: 44px;
+  background: #245d50;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.journey-calendar-legend {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 9px;
+  color: #829189;
+  margin: 14px 0;
+}
+.journey-calendar-legend span {
+  height: 6px;
+  width: 6px;
+  border: 1px solid #d4dfd7;
+  margin-left: 5px;
+}
+.journey-calendar-legend span:nth-of-type(2) {
+  background: #245d50;
+  border-color: #245d50;
+}
+.journey-calendar-legend span:nth-of-type(3) {
+  background: #e7ece7;
+}
+.minimal-booking-content .field {
+  display: block;
+  border-radius: 7px !important;
+  background: #fff !important;
+  border: 1px solid #dfe6e2 !important;
+  min-height: 48px;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 12px;
+}
+.minimal-booking-content label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.minimal-booking-content .field:focus {
+  outline: 2px solid #a8c4b9;
+  outline-offset: 2px;
+}
+.minimal-document-step {
+  margin-top: 0;
+  border: 0;
+  padding-top: 0;
+}
+.minimal-document-step + .minimal-document-step {
+  padding-top: 24px;
+  margin-top: 24px;
+  border-top: 1px solid #edf0ed;
+}
+.minimal-document-step fieldset legend {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.minimal-document-step fieldset > p {
+  font-size: 11px;
+}
+.minimal-document-step fieldset > div {
+  margin-top: 14px;
+}
+.minimal-document-step fieldset label {
+  padding: 15px;
+  border-radius: 8px;
+}
+.minimal-document-step fieldset label > span {
+  font-size: 11px;
+}
+.minimal-document-step fieldset label strong {
+  font-size: 17px;
+}
+.minimal-upload {
+  padding: 16px;
+  border: 1px solid #e1e8e2;
+  border-radius: 9px;
+  min-width: 0;
+  background: #fff;
+}
+.minimal-upload-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.minimal-upload h3 {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.minimal-upload-heading > span {
+  font-size: 9px;
+  color: #819088;
+  padding-top: 3px;
+}
+.minimal-upload-actions {
+  display: flex;
+  gap: 8px;
+}
+.minimal-upload-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid #dfe6e0;
+  color: #245d50;
+  background: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+.minimal-upload-actions button:hover {
+  background: #f5f8f4;
+}
+.minimal-upload-preview {
+  display: block;
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+  background: #f5f7f3;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.minimal-upload-preview img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+}
+.minimal-upload-preview > span {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  background: #fff;
+  padding: 5px 7px;
+  border-radius: 4px;
+}
+.minimal-upload-help {
+  display: flex;
+  gap: 5px;
+  align-items: start;
+  font-size: 10px;
+  color: #74857a;
+  margin-top: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.minimal-upload-help svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #2c6a55;
+}
+.minimal-upload-error {
+  font-size: 11px;
+  color: #a5382a;
+  margin-top: 10px;
+}
+.minimal-document-dialog {
+  margin: auto;
+  border: 0;
+  padding: 36px 16px 16px;
+  border-radius: 10px;
+  width: min(92vw, 700px);
+  max-height: 90dvh;
+  background: #fff;
+}
+.minimal-document-dialog::backdrop {
+  background: #112e2cb0;
+}
+.minimal-document-dialog > button {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  min-height: 32px;
+  min-width: 32px;
+  display: grid;
+  place-items: center;
+}
+.minimal-document-dialog img {
+  display: block;
+  max-height: 75dvh;
+  max-width: 100%;
+  margin: auto;
+  object-fit: contain;
+}
+.minimal-review-ride {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0 22px;
+}
+.minimal-review-ride figure,
+.minimal-review-ride > div[role="img"] {
+  width: 100px;
+  flex: 0 0 100px;
+  border-radius: 8px;
+}
+.minimal-review-ride h3 {
+  font-size: 17px;
+  font-weight: 650;
+}
+.minimal-review-ride p {
+  font-size: 12px;
+  color: #77897e;
+  margin-top: 6px;
+}
+.minimal-booking-content dl.divide-y {
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.minimal-booking-content dl.divide-y > div {
+  padding: 13px 0;
+  gap: 24px;
+  font-size: 12px;
+  border-color: #eef2ed;
+}
+.minimal-booking-content dl.divide-y dt {
+  font-weight: 500;
+  color: #849288;
+}
+.minimal-booking-content dl.divide-y dd {
+  color: #204d41;
+  font-weight: 600;
+  max-width: 65%;
+  overflow-wrap: anywhere;
+}
+.minimal-booking-content .py-8 > svg {
+  height: 44px;
+  width: 44px;
+  background: #eef6ee;
+  border-radius: 50%;
+  padding: 8px;
+}
+.minimal-booking-content .py-8 > h2 {
+  font-size: 25px;
+}
+.minimal-home-button {
+  display: flex;
+  min-height: 48px;
+  justify-content: center;
+  align-items: center;
+  background: #245d50;
+  color: white;
+  border-radius: 7px;
+  margin-top: 24px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.minimal-transfer {
+  margin-top: 18px;
+  font-size: 12px;
+  color: #49695a;
+}
+.minimal-transfer progress {
+  margin-top: 9px;
+  height: 5px;
+}
+.minimal-desktop-summary {
+  border: 1px solid #eef1ed;
+  border-radius: 9px;
+  overflow: hidden;
+  position: sticky;
+  top: 24px;
+}
+.minimal-desktop-summary > img {
+  height: 140px;
+  width: 100%;
+  object-fit: contain;
+  background: #f8faf6;
+}
+.minimal-desktop-summary > div {
+  padding: 18px;
+}
+.minimal-desktop-summary > div > p:first-child {
+  display: none;
+}
+.minimal-desktop-summary > div > p:nth-child(2) {
+  font-size: 9px;
+}
+.minimal-desktop-summary h2 {
+  font-size: 17px;
+  margin-top: 8px;
+}
+.minimal-desktop-summary dl {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.minimal-desktop-summary dl dd {
+  max-width: 60%;
+  text-align: right;
+}
+.minimal-desktop-summary dl .text-lg {
+  font-size: 16px;
+}
+.minimal-desktop-summary > div > p:last-child {
+  font-size: 10px;
+}
+.journey-showroom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.journey-showroom > button {
+  border-radius: 9px;
+  border-width: 1px;
+  background: white;
+  box-shadow: none;
+}
+.journey-showroom > button[aria-pressed="true"] {
+  border-color: #2d6655;
+  box-shadow: 0 0 0 1px #2d6655;
+  background: #fff;
+}
+.journey-showroom figure {
+  aspect-ratio: 4/3;
+  background: #fafbf8;
+}
+.journey-showroom button > div:last-child {
+  padding: 14px;
+}
+.journey-showroom h2 {
+  font-size: 17px;
+}
+.journey-showroom button > div:last-child > p:first-child {
+  font-size: 10px;
+  color: #356756;
+}
+.journey-showroom button > div:last-child > p:nth-child(4) {
+  display: none;
+}
+.journey-showroom button > div:last-child > p:last-child {
+  font-size: 17px;
+}
+.journey-showroom .shadow-lg {
+  box-shadow: none;
+}
+.journey-launch-notice {
+  padding: 12px;
+  background: #faf7ef;
+  border: 1px solid #eee7d7;
+  border-radius: 7px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+}
+.journey-launch-notice svg {
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+}
+.journey-launch-notice p {
+  font-size: 10px;
+  line-height: 1.6;
+  margin-top: 4px;
+  color: #7e8b81;
+}
+.minimal-booking-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fffffff5;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 16px 0 max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid #edf0ed;
+  backdrop-filter: blur(8px);
+}
+.minimal-booking-actions button {
+  border-radius: 7px;
+  min-height: 48px;
+  font-size: 12px;
+  padding: 0 20px;
+}
+.minimal-booking-actions button:last-child {
+  background: #245d50;
+  color: white;
+  min-width: 140px;
+}
+.minimal-booking-actions button:disabled {
+  background: #edf1ec;
+  color: #a0ada3;
+  cursor: not-allowed;
+}
+.minimal-booking-content .bg-sand\/60.mt-5 {
+  display: none;
+}
+.minimal-booking-content > div > p.bg-sand\/60 {
+  font-size: 11px;
+}
+.minimal-booking-content > div > button.text-xs {
+  font-size: 10px;
+}
+@keyframes minimal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 800px) {
+  .minimal-booking-header {
+    height: 60px;
+    padding: 0 18px;
+  }
+  .minimal-booking-header img {
+    width: 29px;
+    height: auto;
+  }
+  .minimal-booking-header > a:first-child {
+    font-size: 21px;
+  }
+  .minimal-booking-header > a:last-child {
+    font-size: 10px;
+  }
+  .booking-journey-page {
+    padding: 20px 0 16px;
+  }
+  .booking-journey-page > div {
+    padding: 0 18px;
+  }
+  .minimal-booking-layout {
+    display: block;
+  }
+  .minimal-progress {
+    margin-bottom: 22px;
+  }
+  .minimal-desktop-summary {
+    display: none;
+  }
+  .minimal-booking-content h2 {
+    font-size: 23px;
+  }
+  .minimal-selected-ride {
+    margin-bottom: 20px;
+  }
+  .journey-date-switch {
+    gap: 8px;
+    grid-template-columns: 1fr 12px 1fr;
+  }
+  .journey-date-switch button {
+    padding: 11px;
+    min-height: 78px;
+  }
+  .journey-date-switch strong {
+    font-size: 11px;
+  }
+  .journey-calendar .rental-time-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-height: 150px;
+  }
+  .journey-calendar [data-calendar-day] {
+    min-height: 44px;
+  }
+  .journey-showroom {
+    gap: 12px;
+  }
+  .journey-showroom h2 {
+    font-size: 14px;
+  }
+  .journey-showroom button > div:last-child {
+    padding: 12px;
+  }
+  .journey-showroom button > div:last-child > p:nth-child(3) {
+    font-size: 10px;
+  }
+  .journey-showroom button > div:last-child > p:last-child {
+    font-size: 15px;
+  }
+  .minimal-booking-content .py-8 {
+    padding-top: 16px;
+  }
+  .minimal-booking-content .py-8 > h2 {
+    font-size: 24px;
+  }
+  .minimal-booking-content .py-8 > p {
+    font-size: 12px;
+  }
+  .minimal-booking-actions {
+    padding-top: 14px;
+    margin-top: 22px;
+  }
+  .minimal-review-ride h3 {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .minimal-booking-content > div {
+    animation: none;
+  }
+}
+
+.minimal-upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.minimal-document-info {
+  margin-top: 24px;
+  border-top: 1px solid #edf0ed;
+  border-bottom: 1px solid #edf0ed;
+}
+.minimal-document-info summary {
+  cursor: pointer;
+  padding: 17px 0;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 48px;
+}
+.minimal-document-info summary span {
+  font-size: 10px;
+  color: #829087;
+  font-weight: 400;
+  margin-left: 10px;
+}
+.minimal-document-info > div {
+  padding: 8px 0 22px;
+}
+@media (max-width: 640px) {
+  .minimal-upload-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .minimal-booking-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .minimal-step-body {
+    max-height: calc(100dvh - 236px - env(safe-area-inset-bottom));
+    min-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 1px 12px;
+    scrollbar-width: thin;
+  }
+  .minimal-booking-actions {
+    position: static;
+    margin-top: 0;
+    flex-shrink: 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: #fff;
+  }
+  .minimal-booking-content .minimal-step-body > .py-8 {
+    padding-top: 4px;
+  }
+  .minimal-step-body:has(.minimal-home-button) {
+    max-height: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .booking-journey-page {
+    min-height: calc(100dvh - 60px);
+  }
+}

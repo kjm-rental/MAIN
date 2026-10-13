@@ -1,0 +1,93 @@
+.home {
+  --motion-duration: 520ms;
+  --motion-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.home :global(.island-hero h1) {
+  color: white;
+}
+.home :global(.group) {
+  transition:
+    transform 240ms var(--motion-ease),
+    box-shadow 240ms var(--motion-ease);
+}
+.home :global(.group:focus-within) {
+  outline: 2px solid #086d69;
+  outline-offset: 4px;
+}
+.home :global(a:focus-visible),
+.home :global(summary:focus-visible) {
+  outline: 2px solid #086d69;
+  outline-offset: 4px;
+}
+.home :global(.island-hero a:focus-visible) {
+  outline-color: white;
+}
+.home :global(.group a:hover) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.home :global(.group a svg) {
+  transition: transform 200ms ease;
+}
+.home :global(.group a:hover svg) {
+  transform: translate(2px, -2px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .home :global(.island-hero h1),
+  .home :global(.island-hero p),
+  .home :global(.island-hero div > .mt-9),
+  .home :global(.island-hero #plan-your-ride) {
+    animation: enter var(--motion-duration) var(--motion-ease) backwards;
+  }
+  .home :global(.island-hero h1) {
+    animation-delay: 70ms;
+  }
+  .home :global(.island-hero h1 + p) {
+    animation-delay: 120ms;
+  }
+  .home :global(.island-hero div > .mt-9) {
+    animation-delay: 160ms;
+  }
+  .home :global(.island-hero #plan-your-ride) {
+    animation-name: cardEnter;
+    animation-delay: 100ms;
+  }
+  .reveal {
+    animation: enter var(--motion-duration, 520ms) var(--motion-ease, ease-out)
+      backwards;
+  }
+  @keyframes enter {
+    from {
+      opacity: 0.25;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes cardEnter {
+    from {
+      opacity: 0.8;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home *,
+  .home *::before,
+  .home *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .home :global(.group:hover),
+  .home :global(.group:hover img),
+  .home :global(a:hover svg) {
+    transform: none !important;
+  }
+}

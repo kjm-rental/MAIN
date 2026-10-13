@@ -1,0 +1,43 @@
+.preview {
+  border-top: 1px solid #b6c8c1;
+}
+.preview details {
+  border-bottom: 1px solid #b6c8c1;
+  padding: 20px 0;
+}
+.preview summary {
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  transition: background-color 180ms ease;
+}
+.preview summary:hover {
+  background: #e6efea;
+}
+.preview details[open] summary {
+  color: #086d69;
+}
+.preview summary::-webkit-details-marker {
+  display: none;
+}
+@supports (interpolate-size: allow-keywords) {
+  .preview {
+    interpolate-size: allow-keywords;
+  }
+  .preview details::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 250ms ease,
+      content-visibility 250ms allow-discrete;
+  }
+  .preview details[open]::details-content {
+    height: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview *,
+  .preview details::details-content {
+    transition: none !important;
+  }
+}

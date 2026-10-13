@@ -1,0 +1,32 @@
+export const editorialImages = {
+  lifestyle: {
+    id: "lapu-lapu-life",
+    src: "/images/island/lapu-lapu-boat.webp",
+    title: "Fishing boat near Lapu-Lapu",
+    alt: "Fishing boat on the water near Lapu-Lapu",
+    author: "Martin Michlmayr",
+    file: "Cebu Dive Trip 2026-01-04 002.jpg",
+    license: "4.0",
+    section: "Homepage Why KJM",
+  },
+  adventure: {
+    id: "mactan-road",
+    src: "/images/island/mactan-road.webp",
+    title: "Mactan–Mandaue Bridge",
+    alt: "Mactan–Mandaue Bridge linking the Cebu and Mactan shores",
+    author: "Mike Gonzalez (TheCoffee)",
+    file: "Mactan-Mandaue Bridge.jpg",
+    license: "3.0",
+    section: "Homepage island adventure",
+  },
+  journey: {
+    id: "cordova-sunset",
+    src: "/images/island/cordova-sunset.webp",
+    title: "Sunset in Cordova",
+    alt: "Sunset over the water in Cordova, Cebu",
+    author: "Carl Griño",
+    file: "Sunset in Cordova (Cebu Province, Philippines).jpg",
+    license: "4.0",
+    section: "How It Works hero",
+  },
+} as const;

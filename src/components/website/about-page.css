@@ -1,0 +1,482 @@
+.kjm-about-page {
+  background: #fcfaf6;
+  padding: 0 24px 44px;
+  color: #153f40;
+}
+.kjm-about-container {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+}
+.kjm-about-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.17em;
+  line-height: 1.8;
+  color: #086d69;
+  margin-bottom: 18px;
+}
+.kjm-about-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+  padding: 40px 0 48px;
+}
+.kjm-about-hero h1 {
+  font-size: clamp(44px, 5vw, 72px);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+.kjm-about-page h2 {
+  font-size: clamp(32px, 3.2vw, 45px);
+  font-weight: 500;
+  line-height: 1.13;
+  letter-spacing: -0.025em;
+}
+.kjm-about-page h1 em,
+.kjm-about-page h2 em {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  color: #086d69;
+}
+.kjm-about-lead {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #466261;
+  max-width: 425px;
+  margin: 24px 0;
+}
+.kjm-about-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 52px;
+  padding: 15px 22px;
+  border-radius: 100px;
+  background: #153f40;
+  color: #fcfaf6;
+  font-size: 12px;
+  font-weight: 750;
+  transition:
+    background 180ms,
+    transform 180ms;
+}
+.kjm-about-button:hover {
+  background: #086d69;
+  transform: translateY(-2px);
+}
+.kjm-about-button svg,
+.kjm-about-text-link svg {
+  transition: transform 180ms;
+}
+.kjm-about-button:hover svg,
+.kjm-about-text-link:hover svg {
+  transform: translate(2px, -2px);
+}
+.kjm-about-hero-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: #466261;
+  margin-top: 25px;
+}
+.kjm-about-hero-foot svg {
+  color: #086d69;
+  flex-shrink: 0;
+}
+.kjm-about-hero-image {
+  position: relative;
+  height: 490px;
+  border-radius: 100px 24px 24px 24px;
+  overflow: hidden;
+  background: #e4ece3;
+}
+.kjm-about-hero-image img {
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+.kjm-about-photo-tag {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  padding: 10px 14px;
+  background: #fcfaf6;
+  border-radius: 100px;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+.kjm-about-credit {
+  font-size: 9px;
+  line-height: 1.8;
+  color: #466261;
+  margin-top: 10px;
+}
+.kjm-about-credit a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kjm-about-intro {
+  border-top: 1px solid #d0dacf;
+  padding: 48px 0 54px;
+}
+.kjm-about-intro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 90px;
+}
+.kjm-about-small-wave {
+  color: #b16443;
+  margin-top: 26px;
+}
+.kjm-about-big-copy {
+  font-family: var(--font-outfit), sans-serif;
+  font-size: 23px;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  margin-bottom: 16px;
+}
+.kjm-about-intro-text > p:not(.kjm-about-big-copy) {
+  color: #466261;
+  font-size: 13px;
+  line-height: 1.95;
+  margin-top: 13px;
+}
+.kjm-about-launch-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-top: 1px solid #d0dacf;
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.kjm-about-launch-note > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #b16443;
+  margin-top: 6px;
+}
+.kjm-about-launch-note p {
+  font-size: 11px;
+  line-height: 1.85;
+  color: #466261;
+}
+.kjm-about-island {
+  background: #153f40;
+  color: #fcfaf6;
+  margin-inline: -24px;
+  padding: 48px 24px;
+}
+.kjm-about-island-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+.kjm-about-island-image {
+  position: relative;
+  height: 330px;
+  overflow: hidden;
+  border-radius: 20px 70px 20px 20px;
+  background: #274d4b;
+}
+.kjm-about-island-image img {
+  object-fit: cover;
+  object-position: 40% 55%;
+}
+.kjm-about-island .kjm-about-eyebrow {
+  color: #f6ad88;
+}
+.kjm-about-island h2 em {
+  color: #f6ad88;
+}
+.kjm-about-island-copy > p:not(.kjm-about-eyebrow) {
+  color: #e0ece8;
+  font-size: 13px;
+  line-height: 1.9;
+  margin-top: 20px;
+}
+.kjm-about-island .kjm-about-credit {
+  color: #e0ece8;
+}
+.kjm-about-text-link {
+  display: inline-flex;
+  gap: 22px;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 750;
+  border-bottom: 1px solid currentColor;
+  margin-top: 22px;
+}
+.kjm-about-journey {
+  padding: 56px 0;
+}
+.kjm-about-journey-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 48px;
+}
+.kjm-about-journey-heading > p {
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #466261;
+}
+.kjm-about-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 38px;
+  margin-top: 38px;
+  padding: 0;
+}
+.kjm-about-steps li {
+  border-top: 1px solid #8ca496;
+  padding-top: 20px;
+}
+.kjm-about-step-number {
+  display: block;
+  color: #956047;
+  font:
+    italic 32px Georgia,
+    serif;
+  margin-bottom: 17px;
+}
+.kjm-about-steps h3 {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.kjm-about-steps p {
+  color: #466261;
+  font-size: 12px;
+  line-height: 1.9;
+  margin-top: 12px;
+}
+.kjm-about-step-label {
+  display: block;
+  color: #086d69;
+  letter-spacing: 0.14em;
+  font-size: 8px;
+  font-weight: 750;
+  margin-top: 20px;
+}
+.kjm-about-cta {
+  background: #eee5d5;
+  border-radius: 24px;
+  overflow: hidden;
+}
+.kjm-about-cta-inner {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  padding: 36px 44px;
+}
+.kjm-about-cta p:not(.kjm-about-eyebrow) {
+  color: #466261;
+  font-size: 13px;
+  line-height: 1.8;
+  margin-top: 16px;
+  max-width: 440px;
+}
+.kjm-about-button-light {
+  background: #f6ad88;
+  color: #153f40;
+  flex-shrink: 0;
+}
+.kjm-about-button-light:hover {
+  background: #ffd0b6;
+}
+.kjm-about-cta-waves {
+  position: absolute;
+  right: -35px;
+  bottom: -80px;
+  color: #b0c4b7;
+  z-index: -1;
+}
+.kjm-about-photo-note {
+  color: #466261;
+  font-size: 9px;
+  line-height: 1.8;
+  margin-top: 17px;
+}
+.kjm-about-page a:focus-visible {
+  outline: 3px solid #b45b3c;
+  outline-offset: 5px;
+}
+.kjm-about-island a:focus-visible {
+  outline-color: #f6ad88;
+}
+.kjm-about-hero-copy {
+  animation: kjm-about-arrive 600ms ease;
+}
+.kjm-about-hero-image {
+  animation: kjm-about-image 700ms ease;
+}
+.kjm-about-enter {
+  animation: kjm-about-arrive 650ms ease;
+}
+@keyframes kjm-about-arrive {
+  from {
+    opacity: 0.95;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes kjm-about-image {
+  from {
+    opacity: 0.95;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1000px) {
+  .kjm-about-hero {
+    gap: 32px;
+  }
+  .kjm-about-hero-image {
+    height: 440px;
+  }
+  .kjm-about-intro-grid {
+    gap: 42px;
+  }
+  .kjm-about-island-grid {
+    gap: 32px;
+  }
+  .kjm-about-steps {
+    gap: 24px;
+  }
+}
+@media (max-width: 700px) {
+  .kjm-about-page {
+    padding: 0 20px 30px;
+  }
+  .kjm-about-hero {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 30px 0 32px;
+  }
+  .kjm-about-hero h1 {
+    font-size: clamp(44px, 10vw, 60px);
+  }
+  .kjm-about-eyebrow {
+    font-size: 9px;
+    margin-bottom: 14px;
+    letter-spacing: 0.13em;
+  }
+  .kjm-about-lead {
+    margin: 20px 0;
+    font-size: 13px;
+  }
+  .kjm-about-hero-foot {
+    margin-top: 20px;
+    font-size: 9px;
+  }
+  .kjm-about-hero-image {
+    height: 320px;
+    border-radius: 65px 18px 18px 18px;
+  }
+  .kjm-about-photo-tag {
+    font-size: 7px;
+    bottom: 16px;
+    left: 16px;
+    padding: 10px 12px;
+  }
+  .kjm-about-credit {
+    font-size: 9px;
+  }
+  .kjm-about-intro {
+    padding: 34px 0;
+  }
+  .kjm-about-intro-grid {
+    grid-template-columns: 1fr;
+    gap: 23px;
+  }
+  .kjm-about-small-wave {
+    display: none;
+  }
+  .kjm-about-big-copy {
+    font-size: 21px;
+  }
+  .kjm-about-island {
+    margin-inline: -20px;
+    padding: 32px 20px;
+  }
+  .kjm-about-island-grid {
+    grid-template-columns: 1fr;
+    gap: 27px;
+  }
+  .kjm-about-island-image {
+    height: 250px;
+    border-radius: 18px 55px 18px 18px;
+  }
+  .kjm-about-island-copy > p:not(.kjm-about-eyebrow) {
+    margin-top: 16px;
+  }
+  .kjm-about-journey {
+    padding: 36px 0;
+  }
+  .kjm-about-journey-heading {
+    display: block;
+  }
+  .kjm-about-journey-heading > p {
+    max-width: none;
+    margin-top: 18px;
+  }
+  .kjm-about-steps {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 28px;
+  }
+  .kjm-about-steps li {
+    padding: 18px 0 0 50px;
+    position: relative;
+  }
+  .kjm-about-step-number {
+    position: absolute;
+    left: 0;
+    top: 17px;
+    font-size: 26px;
+  }
+  .kjm-about-step-label {
+    margin-top: 13px;
+  }
+  .kjm-about-cta-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 28px 24px;
+  }
+  .kjm-about-cta-waves {
+    right: -80px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kjm-about-page *,
+  .kjm-about-page *::before,
+  .kjm-about-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,46 @@
+.timeline {
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 23px;
+  top: 24px;
+  bottom: 35px;
+  width: 1px;
+  background: #b6ccc6;
+}
+.step {
+  position: relative;
+}
+.step:last-child {
+  padding-bottom: 0;
+}
+@media (min-width: 640px) {
+  .timeline::before {
+    left: 27px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .timeline::before {
+    transform-origin: top;
+    animation: trace 1.2s ease-out both;
+  }
+  .step:hover .marker {
+    transform: translateY(-2px);
+    background: #f6ad88;
+  }
+  .marker {
+    transition:
+      transform 200ms ease,
+      background-color 200ms ease;
+  }
+  @keyframes trace {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+}

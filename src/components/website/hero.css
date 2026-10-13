@@ -1,0 +1,77 @@
+.kjm-coastal-hero {
+  background: var(--deep-teal);
+  padding-block: 3.5rem;
+}
+.kjm-coastal-content {
+  display: grid;
+  align-items: center;
+  gap: 2rem;
+}
+.kjm-coastal-scene {
+  position: relative;
+  height: 20rem;
+  margin-inline: -1.25rem;
+}
+.kjm-coastal-photo {
+  object-fit: cover;
+  object-position: 58% center;
+}
+.kjm-coastal-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--deep-teal),
+    rgba(21, 63, 64, 0.04) 18%,
+    rgba(21, 63, 64, 0.04) 85%,
+    var(--deep-teal)
+  );
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .kjm-coastal-scene {
+    height: 26rem;
+    margin-inline: -2rem;
+  }
+}
+@media (min-width: 1024px) {
+  .kjm-coastal-hero {
+    padding-block: 4.5rem;
+  }
+  .kjm-coastal-content {
+    max-width: 100rem;
+    padding-inline: clamp(3rem, 5vw, 6rem);
+    grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.7fr);
+    gap: clamp(8rem, 16vw, 16rem);
+    min-height: 35rem;
+  }
+  .kjm-coastal-content h1 {
+    font-size: clamp(4rem, 5.3vw, 5.4rem);
+  }
+  .kjm-coastal-content h1 + p {
+    max-width: 30rem;
+  }
+  .kjm-coastal-scene {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    margin: 0;
+    z-index: -1;
+  }
+  .kjm-coastal-photo {
+    object-position: 80% bottom;
+  }
+  .kjm-coastal-booking {
+    width: 100%;
+    max-width: 24rem;
+    justify-self: end;
+  }
+  .kjm-coastal-overlay {
+    background: linear-gradient(
+      90deg,
+      rgba(12, 43, 44, 0.82),
+      rgba(12, 43, 44, 0.65) 32%,
+      rgba(12, 43, 44, 0.08) 58%,
+      rgba(12, 43, 44, 0.03)
+    );
+  }
+}
