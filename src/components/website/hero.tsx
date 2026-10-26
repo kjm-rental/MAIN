@@ -1,4 +1,4 @@
-import { ArrowRight, Compass, MapPin } from "lucide-react";
+import { ArrowRight, Compass, MapPin, Tag } from "lucide-react";
 import Image from "next/image";
 import "./hero.css";
 import type { MotorcycleModel } from "@/types/motorcycle";
@@ -16,8 +16,8 @@ export function Hero({
   return (
     <section className="island-hero kjm-coastal-hero relative isolate overflow-hidden text-white">
       <Container className="kjm-coastal-content">
-        <div>
-          <p className="text-deep-teal border-ocean/15 bg-sand inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-extrabold tracking-[0.12em] uppercase">
+        <div className="kjm-coastal-copy">
+          <p className="kjm-coastal-location text-deep-teal border-ocean/15 bg-sand inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-extrabold tracking-[0.12em] uppercase">
             <MapPin aria-hidden="true" className="size-4" />
             Lapu-Lapu City · Mactan Island
           </p>
@@ -27,27 +27,40 @@ export function Hero({
               on <span className="text-sunset">two wheels.</span>
             </span>
           </h1>
-          <p className="text-on-dark-muted mt-7 max-w-2xl text-lg leading-8">
-            Explore Lapu-Lapu, Mactan and Cebu with the freedom of your own
-            ride. Find the perfect motorcycle for your island adventure.
+          <p className="kjm-coastal-description text-on-dark-muted mt-7 max-w-2xl text-lg leading-8">
+            <span className="kjm-coastal-description-desktop">
+              Explore Lapu-Lapu, Mactan and Cebu with the freedom of your own
+              ride. Find the perfect motorcycle for your island adventure.
+            </span>
+            <span className="kjm-coastal-description-mobile">
+              Explore Cebu your way. Find your perfect motorcycle and ride
+              freely.
+            </span>
           </p>
           {motorcycles.length > 0 && (
-            <p className="mt-5 font-bold">
-              Island rides from{" "}
-              {formatPhp(Math.min(...motorcycles.map((m) => m.dailyRatePhp)))}
-              /day
+            <p className="kjm-coastal-price mt-5 font-bold">
+              <Tag aria-hidden="true" className="kjm-coastal-price-icon" />
+              <span>
+                Island rides from{" "}
+                {formatPhp(Math.min(...motorcycles.map((m) => m.dailyRatePhp)))}
+                /day
+              </span>
             </p>
           )}
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <div className="kjm-coastal-actions mt-9 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href="/motorcycles">
               Explore Motorcycles{" "}
               <ArrowRight aria-hidden="true" className="ml-2 size-4" />
             </ButtonLink>
-            <ButtonLink href="/book" variant="light">
+            <ButtonLink
+              href="/book"
+              variant="light"
+              className="kjm-coastal-book-action"
+            >
               Book your ride
             </ButtonLink>
           </div>
-          <div className="text-on-dark-muted mt-10 flex items-center gap-3 text-xs font-semibold">
+          <div className="kjm-coastal-note text-on-dark-muted mt-10 flex items-center gap-3 text-xs font-semibold">
             <Compass aria-hidden="true" className="text-sunset size-5" />
             <span>A simple starting point for your Cebu journey.</span>
           </div>

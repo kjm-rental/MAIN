@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CalendarDays, Search } from "lucide-react";
+import { ArrowRight, CalendarDays, Search } from "lucide-react";
 import Link from "next/link";
 import { RentalDateTimePicker } from "@/components/ui/rental-date-time-picker";
 import { createClient } from "@/lib/supabase/client";
@@ -96,7 +96,17 @@ export function BookingPreview({
           className="bg-sunset text-deep-teal hover:bg-sand inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-extrabold transition-colors"
         >
           <Search aria-hidden="true" className="size-4" />
-          {busy ? "Checking availability…" : "Find your ride"}
+          {busy ? (
+            "Checking availability…"
+          ) : (
+            <>
+              <span className="kjm-booking-label-desktop">Find your ride</span>
+              <span className="kjm-booking-label-mobile">
+                Find Your Motorcycle{" "}
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </span>
+            </>
+          )}
         </button>
       </form>
       {available.length > 0 && (

@@ -91,3 +91,16 @@
     transform: none !important;
   }
 }
+
+@media (max-width: 639px) {
+  .home > :global(section:not(.kjm-coastal-hero)) {
+    padding-block: 2.5rem;
+  }
+  .home > :global(section h2) {
+    font-size: 1.875rem;
+    line-height: 1.15;
+  }
+  .home :global(#how-it-works ol) {
+    margin-top: 1.5rem;
+  }
+}
