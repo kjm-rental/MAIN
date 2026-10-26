@@ -113,6 +113,7 @@ export function HomeSections({ catalog }: { catalog: PublicCatalogResult }) {
                   src={editorialImages.lifestyle.src}
                   alt={editorialImages.lifestyle.alt}
                   fill
+                  quality={90}
                   sizes="(max-width: 1023px) calc(100vw - 40px), 560px"
                   className="object-cover"
                 />
@@ -226,6 +227,7 @@ export function HomeSections({ catalog }: { catalog: PublicCatalogResult }) {
                   src={editorialImages.adventure.src}
                   alt={editorialImages.adventure.alt}
                   fill
+                  quality={90}
                   sizes="(max-width:1023px) calc(100vw - 40px), 560px"
                   className="object-cover"
                 />

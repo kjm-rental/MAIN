@@ -26,6 +26,7 @@ export function MotorcycleVisual({
           src={media.src}
           alt={media.alt}
           fill
+          quality={90}
           sizes={
             compact
               ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

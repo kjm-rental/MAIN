@@ -151,19 +151,6 @@ a[aria-current="page"] {
   background: var(--header-teal);
   color: var(--header-teal);
 }
-/* Keep the mobile navigation on a continuous cream surface. */
-@media (max-width: 639px) {
-  header.coastal-header {
-    padding: 0;
-    background: var(--header-ivory);
-  }
-  .coastal-header .coastal-frame {
-    border: 0;
-    border-radius: 0;
-    background: var(--header-ivory);
-    box-shadow: none;
-  }
-}
 .coastal-frame {
   background: rgb(250 247 240 / 0.98);
   border-color: rgb(250 247 240 / 0.25);

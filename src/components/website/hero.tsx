@@ -71,7 +71,9 @@ export function Hero({
             alt="Rear view of a helmeted scooter rider exploring a tropical coastal road beside turquoise ocean and palms"
             fill
             preload
-            sizes="100vw"
+            quality={90}
+            // The 2:1 source covers a mobile backdrop at least 32rem tall.
+            sizes="(max-width: 639px) max(100vw, 64rem), 100vw"
             className="kjm-coastal-photo"
           />
           <div aria-hidden="true" className="kjm-coastal-overlay" />
