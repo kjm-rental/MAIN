@@ -27,7 +27,7 @@ export function SiteHeader() {
       : pathname === href || pathname.startsWith(href + "/");
   return (
     <header
-      className="coastal-header sticky top-0 z-50 px-3 pt-2 pb-2 sm:px-6 sm:pt-2"
+      className={`coastal-header ${pathname === "/" ? "fixed inset-x-0" : "sticky"} top-0 z-50 px-3 pt-2 pb-2 sm:px-6 sm:pt-2`}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           setIsOpen(false);

@@ -1,6 +1,6 @@
 .kjm-coastal-hero {
   background: var(--deep-teal);
-  padding-block: 3.5rem;
+  padding-block: 9rem 3.5rem;
 }
 .kjm-coastal-content {
   display: grid;
@@ -35,7 +35,7 @@
 }
 @media (min-width: 1024px) {
   .kjm-coastal-hero {
-    padding-block: 4.5rem;
+    padding-block: 10rem 4.5rem;
   }
   .kjm-coastal-content {
     max-width: 100rem;
@@ -85,7 +85,7 @@
 /* The existing image becomes the mobile backdrop; the form stays in flow. */
 @media (max-width: 639px) {
   .kjm-coastal-hero {
-    padding-block: 1.75rem 1.25rem;
+    padding-block: 7.25rem 1.25rem;
   }
   .kjm-coastal-content {
     position: relative;
@@ -156,11 +156,11 @@
   }
   .kjm-coastal-scene {
     position: absolute;
-    inset: -1.75rem 0 auto;
+    inset: -7.25rem 0 auto;
     z-index: -1;
     width: 100%;
-    height: calc(100% - 18rem);
-    min-height: 32rem;
+    height: calc(100% - 12.5rem);
+    min-height: 37.5rem;
     margin: 0;
     border-radius: 0;
     pointer-events: none;

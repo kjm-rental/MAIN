@@ -72,8 +72,8 @@ export function Hero({
             fill
             preload
             quality={90}
-            // The 2:1 source covers a mobile backdrop at least 32rem tall.
-            sizes="(max-width: 639px) max(100vw, 64rem), 100vw"
+            // The 2:1 source covers a mobile backdrop at least 37.5rem tall.
+            sizes="(max-width: 639px) max(100vw, 75rem), 100vw"
             className="kjm-coastal-photo"
           />
           <div aria-hidden="true" className="kjm-coastal-overlay" />

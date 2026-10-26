@@ -148,7 +148,7 @@ a[aria-current="page"] {
 .coastal-header {
   --header-teal: #123f43;
   --header-ivory: #faf7f0;
-  background: var(--header-teal);
+  background: transparent;
   color: var(--header-teal);
 }
 .coastal-frame {
