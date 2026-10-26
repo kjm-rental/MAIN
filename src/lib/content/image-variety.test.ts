@@ -3,13 +3,12 @@ import { readFileSync, existsSync } from "node:fs";
 import { editorialImages } from "./editorial-images";
 import { destinations } from "./destinations";
 describe("editorial image source variety", () => {
-  it("uses distinct files and original source identities for each editorial placement", () => {
+  it("uses distinct local scenery illustrations for each editorial placement", () => {
     const images = Object.values(editorialImages);
-    expect(new Set(images.map((i) => i.file)).size).toBe(images.length);
+    expect(new Set(images.map((i) => i.src)).size).toBe(images.length);
     for (const i of images) {
       expect(existsSync("public" + i.src)).toBe(true);
-      expect(i.author).toBeTruthy();
-      expect(i.license).toMatch(/^[34]\.0$/);
+      expect(i.alt).toContain("Illustrative scenery");
     }
     const paths = [
       ...images.map((i) => i.src),

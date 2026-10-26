@@ -6,9 +6,14 @@ import { supportedCheckoutMethods } from "./payment-methods";
 export class PaymentError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
+/** Reuse an existing live key in the original variable only with explicit live mode. */
+export function paymongoSecret(live:boolean) {
+  const legacy=process.env.PAYMONGO_SECRET_KEY;
+  return live ? process.env.PAYMONGO_LIVE_SECRET_KEY ?? (legacy?.startsWith("sk_live_") ? legacy : undefined) : legacy;
+}
 export function configuration(creation = false) {
   const live = process.env.PAYMONGO_MODE === "live";
-  const secret = live ? process.env.PAYMONGO_LIVE_SECRET_KEY : process.env.PAYMONGO_SECRET_KEY;
+  const secret = paymongoSecret(live);
   const webhook = live ? process.env.PAYMONGO_LIVE_WEBHOOK_SECRET : process.env.PAYMONGO_WEBHOOK_SECRET;
   const cron = live ? process.env.PAYMONGO_LIVE_RECONCILIATION_SECRET : process.env.PAYMONGO_RECONCILIATION_SECRET;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,10 +33,10 @@ export function configuration(creation = false) {
       !cron || cron.length < 32 || !service || !origin ||
       database !== `https://${testRef}.supabase.co` ||
       (!live && process.env.PAYMONGO_TEST_PROJECT_REF !== testRef) || !serviceMatches)
-    throw new PaymentError(503, "PayMongo test payments unavailable");
+    throw new PaymentError(503, "Online payments are not ready");
   const url = new URL(origin);
   if (url.protocol !== "https:" || url.origin !== origin || url.username || url.password)
-    throw new PaymentError(503, "PayMongo test payments unavailable");
+    throw new PaymentError(503, "Online payments are not ready");
   return { secret, webhook, cron, service, database, origin, live };
 }
 export function databaseClient() {
@@ -42,6 +47,10 @@ export type PaymentDB = ReturnType<typeof databaseClient>;
 export async function availableMethods() {
   const c = configuration(true);
   if (c.live && !await rpc<boolean>(databaseClient(), "paymongo_live_ready", {})) throw new PaymentError(503, "Online payments are not ready");
+  if(c.live) {
+    const options=await rpc<{qrph_enabled:boolean;qrph_ready:boolean}>(databaseClient(),"get_delivery_options",{});
+    if(!options.qrph_enabled || !options.qrph_ready)throw new PaymentError(503,"QRPh is disabled or not verified");
+  }
   const methods = await accountMethods();
   if (!c.live) return methods;
   const approved = await rpc<string[]>(databaseClient(), "paymongo_live_methods", {});
@@ -50,7 +59,7 @@ export async function availableMethods() {
 // Read-only TEST-account capability preview. No database or booking access.
 export async function accountMethods() {
   const live = process.env.PAYMONGO_MODE === "live";
-  const secret = live ? process.env.PAYMONGO_LIVE_SECRET_KEY : process.env.PAYMONGO_SECRET_KEY;
+  const secret = paymongoSecret(live);
   if (!secret?.startsWith(live ? "sk_live_" : "sk_test_")) throw new PaymentError(503, "Online payments unavailable");
   const response = await fetch("https://api.paymongo.com/v1/merchants/capabilities/payment_methods", {
     redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10000),
@@ -68,7 +77,7 @@ export async function rpc<T>(db: PaymentDB, name: string, args: Record<string, u
   return result.data as T;
 }
 export const checkoutSchema = z.object({
-  id: z.uuid(), booking_id: z.uuid(), customer_user_id: z.uuid(),
+  id: z.uuid(), booking_id: z.uuid(), customer_user_id: z.uuid().nullable(),
   amount_centavos: z.number().int().positive().safe(), currency: z.literal("PHP"), is_test: z.boolean(),
   checkout_session_id: z.string().regex(/^cs_[A-Za-z0-9]+$/).nullable(),
   checkout_deadline: z.iso.datetime({ offset: true }), creation_claimed_at: z.string().nullable(),
@@ -126,6 +135,13 @@ export async function loadCheckout(db: PaymentDB, id: string) {
   if (checkout.is_test === configuration().live) throw new PaymentError(409, "Booking environment mismatch");
   return checkout;
 }
+// Monitoring never replaces receipt/ledger settlement and is optional before migration 039.
+async function noteProviderStatus(db:PaymentDB,id:string,status:string) {
+  if(!configuration().live)return;
+  try { const result=await db.rpc("note_paymongo_provider_status",{p_checkout_id:id,p_status:status});
+    if(result.error && !["PGRST202","42883"].includes(result.error.code)) console.error("PayMongo status visibility unavailable",{code:result.error.code});
+  } catch { /* An unavailable status cache cannot undo a verified financial receipt. */ }
+}
 // Both webhook and cron use this authoritative retrieval, never return-URL data.
 export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: string) {
   if (recoveredSession && c.checkout_session_id && recoveredSession !== c.checkout_session_id)
@@ -154,22 +170,26 @@ export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: s
       p_session_id: session.id, p_payment_id: payment.id, p_amount_centavos: payment.attributes.amount,
       p_currency: payment.attributes.currency, p_livemode: payment.attributes.livemode,
     });
+    await noteProviderStatus(db,c.id,status);
     return { status, checkoutId: c.id };
   }
-  return { status: session.attributes.status === "expired" ? "expired_unpaid" : "pending", checkoutId: c.id };
+  const state = session.attributes.status;
+  const status = state === "expired" ? "expired_unpaid" : ["cancelled","canceled"].includes(state) ? "cancelled_unpaid" : session.attributes.payments.some(payment=>payment.attributes.status === "failed") ? "failed_unpaid" : "pending";
+  await noteProviderStatus(db,c.id,status);
+  return { status, checkoutId:c.id };
 }
-export async function createCheckout(db: PaymentDB, booking: string, owner: string, key: string) {
+export async function createCheckout(db: PaymentDB, booking: string, owner: string | null, key: string, guestHash?: string) {
   configuration(true);
-  const methods = await availableMethods();
+  const methods = (await availableMethods()).filter(method => !configuration().live || method === "qrph");
   if (!methods.length) throw new PaymentError(503, "Online payments unavailable");
-  const c = checkoutSchema.parse(await rpc(db, paymentRPC("prepare_paymongo_test_checkout"), {
-    p_booking_id: booking, p_owner: owner, p_idempotency_key: key,
-  }));
+  const c = checkoutSchema.parse(await rpc(db, guestHash ? "prepare_paymongo_guest_checkout" : paymentRPC("prepare_paymongo_test_checkout"), guestHash ? {
+    p_booking_id: booking,p_access_hash:guestHash,p_idempotency_key:key,
+  } : {p_booking_id: booking, p_owner: owner, p_idempotency_key: key}));
   const current = await loadCheckout(db, c.id);
   if (current.status === "paid" || current.status === "review_required") return { status: current.status, checkoutId: c.id };
   if (current.checkout_session_id) {
     const state = await reconcile(db, current);
-    if (state.status !== "pending") return state;
+    if (!["pending","failed_unpaid"].includes(state.status)) return state;
     const session = validateSession(await provider(`/${current.checkout_session_id}`), current);
     if (Date.now() >= Date.parse(current.checkout_deadline) || !current.reservation_active || session.attributes.status !== "active")
       throw new PaymentError(409, "Checkout no longer payable");
@@ -180,7 +200,7 @@ export async function createCheckout(db: PaymentDB, booking: string, owner: stri
   const origin = configuration(true).origin;
   const returnURL = process.env.KJM_PAYMONGO_TEST === "true" && !configuration().live
     ? `${origin}/paymongo/return?bookingId=${c.booking_id}`
-    : `${origin}/booking/status/${c.booking_id}`;
+    : guestHash ? `${origin}/guest/booking/${c.booking_id}` : `${origin}/booking/status/${c.booking_id}`;
   // Never retry this POST, even after timeout or 4xx. Durable claim survives crashes.
   const session = validateSession(await provider("", { data: { attributes: {
     line_items: [{ name: configuration().live ? "KJM motorcycle rental" : "KJM TEST motorcycle rental", amount: c.amount_centavos, currency: "PHP", quantity: 1 }],
@@ -226,5 +246,5 @@ export function respond(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 export function failure(error: unknown) {
-  return respond({ error: error instanceof PaymentError ? error.message : "Test payment processing unavailable" }, error instanceof PaymentError ? error.status : 503);
+  return respond({ error: error instanceof PaymentError ? error.message : "Payment processing is temporarily unavailable" }, error instanceof PaymentError ? error.status : 503);
 }

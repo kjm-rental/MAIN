@@ -8,12 +8,12 @@ export function EditorialPhotoCredit({
   const p = editorialImages[image];
   return (
     <p className="text-muted mt-3 text-xs leading-5">
-      {p.title} · {p.author} ·{" "}
+      {p.title} ·{" "}
       <Link
         href={`/photo-credits#${p.id}`}
         className="underline underline-offset-4"
       >
-        CC BY-SA {p.license}
+        Illustrative scenery
       </Link>
     </p>
   );

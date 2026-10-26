@@ -44,6 +44,7 @@ export type Database = {
 
       motorcycle_models: {
         Row: Timestamps & {
+          hourly_extension_rate_php?: number | null;
           id: string;
           slug: string;
           brand: string;
@@ -153,6 +154,7 @@ export type Database = {
       };
       bookings: {
         Row: Timestamps & {
+          rental_pricing?: Json | null;
           id: string;
           booking_reference: string;
           customer_id: string;
@@ -363,6 +365,7 @@ export type Database = {
       };
       booking_settings: {
         Row: {
+          max_hourly_extension_hours?: number | null;
           id: boolean;
           timezone: string;
           operating_hours: Json | null;
@@ -402,6 +405,10 @@ export type Database = {
           entitlement_status: string;
           international_status: string;
           overall_status: string;
+          document_check_status?: string;
+          document_risk_level?: number | null;
+          document_review_reasons?: Json;
+          document_check_id?: string | null;
           license_issuing_country: string | null;
           license_expiration_date: string | null;
           permitted_vehicle_categories: string | null;
@@ -538,6 +545,32 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_public_package_rates: {
+        Args: { p_model_ids: string[] };
+        Returns: {
+          motorcycle_model_id: string;
+          pricing_type: string;
+          amount_php: number;
+          is_active: boolean;
+          valid_from: string | null;
+          valid_until: string | null;
+        }[];
+      };
+      get_booking_quote_v4: {
+        Args: {
+          p_model_id: string;
+          p_start_at: string;
+          p_end_at: string;
+          p_extra_items?: Json;
+          p_deposit_option?: string | null;
+          p_document_type?: string | null;
+        };
+        Returns: Json;
+      };
+      get_verification_progress: {
+        Args: { p_booking_id: string };
+        Returns: Json;
+      };
       get_verification_resubmission_instructions: {
         Args: { p_booking_id: string };
         Returns: string | null;

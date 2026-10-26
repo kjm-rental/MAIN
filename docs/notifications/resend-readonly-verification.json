@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-23",
+  "timezone": "Asia/Manila",
+  "target": "PRODUCTION",
+  "projectRef": "slevojynuumrvgiznmxk",
+  "transactionReadOnly": "on",
+  "applicationRowsMutated": false,
+  "customerRowsRead": false,
+  "emailsSent": 0,
+  "lastRecordedMigration": "202610110022",
+  "migration027Recorded": false,
+  "functionBodyComparison": [
+    {
+      "function": "public.notification_claim_booking",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "public.notification_delivery_context",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "public.notification_prepare",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "private.capture_kjm_finalized_request",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "private.capture_kjm_email_modification",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "private.enqueue_kjm_notification",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "private.kjm_notification_eligible",
+      "bodyMatchesLocalSource": true
+    },
+    {
+      "function": "private.capture_kjm_notification",
+      "bodyMatchesLocalSource": true
+    }
+  ],
+  "tables": [
+    {
+      "forcedRls": true,
+      "name": "customers",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "customer_verifications",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "verification_documents",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "bookings",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "notification_settings",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "notification_outbox",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "notification_generation_errors",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "booking_terms_acceptances",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "forcedRls": true,
+      "name": "booking_confirmation_records",
+      "rls": true,
+      "schema": "public"
+    }
+  ],
+  "notificationPolicies": [
+    {
+      "check": null,
+      "command": "SELECT",
+      "name": "notification_settings_admin_read",
+      "qual": "( SELECT private.is_active_admin() AS is_active_admin)",
+      "roles": ["authenticated"],
+      "schema": "public",
+      "table": "notification_settings"
+    },
+    {
+      "check": null,
+      "command": "SELECT",
+      "name": "notification_outbox_admin_read",
+      "qual": "( SELECT private.is_active_admin() AS is_active_admin)",
+      "roles": ["authenticated"],
+      "schema": "public",
+      "table": "notification_outbox"
+    },
+    {
+      "check": null,
+      "command": "SELECT",
+      "name": "notification_errors_admin_read",
+      "qual": "( SELECT private.is_active_admin() AS is_active_admin)",
+      "roles": ["authenticated"],
+      "schema": "public",
+      "table": "notification_generation_errors"
+    }
+  ],
+  "workerPermissions": [
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_claim_booking",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": "p_booking uuid, p_channel text, p_mock boolean"
+    },
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_delivery_context",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": "p_id uuid, p_lease uuid"
+    },
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_finish",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": "p_id uuid, p_lease uuid, p_result text, p_provider_reference text, p_retry_seconds integer"
+    },
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_prepare",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": "p_id uuid, p_lease uuid, p_hash text"
+    },
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_claim",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": "p_channel text, p_mock boolean"
+    },
+    {
+      "anonExecute": false,
+      "authenticatedExecute": false,
+      "config": ["search_path=\"\""],
+      "name": "notification_schedule_reminders",
+      "schema": "public",
+      "securityDefiner": true,
+      "serviceExecute": true,
+      "signature": ""
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_request",
+      "table": "booking_deposits"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_status",
+      "table": "bookings"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_document",
+      "table": "verification_documents"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_verification",
+      "table": "customer_verifications"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_payment",
+      "table": "payment_events"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_deposit",
+      "table": "security_deposit_events"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_notification",
+      "name": "kjm_notification_inspection",
+      "table": "rental_inspections"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_email_modification",
+      "name": "kjm_email_modification",
+      "table": "bookings"
+    },
+    {
+      "enabled": "O",
+      "function": "capture_kjm_finalized_request",
+      "name": "kjm_email_finalized_request",
+      "table": "booking_terms_acceptances"
+    }
+  ],
+  "outboxUniqueIndexes": [
+    "CREATE UNIQUE INDEX notification_outbox_pkey ON public.notification_outbox USING btree (id)",
+    "CREATE UNIQUE INDEX notification_outbox_event_key_channel_recipient_reference_key ON public.notification_outbox USING btree (event_key, channel, recipient_reference)"
+  ],
+  "directOutboxPrivileges": {
+    "anonRead": false,
+    "authenticatedInsert": false,
+    "authenticatedUpdate": false,
+    "serviceInsert": false
+  },
+  "databaseSettings": {
+    "enabledEvents": [
+      "booking_requested",
+      "booking_approved",
+      "booking_rejected",
+      "verification_review",
+      "verification_action",
+      "booking_cancelled",
+      "pickup_reminder",
+      "pickup_summary",
+      "handover",
+      "return_reminder",
+      "overdue",
+      "returned",
+      "cash_payment",
+      "deposit_collected",
+      "deposit_returned",
+      "deposit_unresolved",
+      "id_custody"
+    ],
+    "remindersApproved": false,
+    "resendEnabled": false
+  },
+  "guestEmailBinding": "Not implemented in installed notification recipient functions; verified Auth email required."
+}

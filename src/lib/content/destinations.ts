@@ -15,8 +15,6 @@ export const destinationGroups = [
     intro: "Look up. The hills hold another side of Cebu.",
   },
 ] as const;
-const commons = (file: string) =>
-  "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(file);
 export const destinations = [
   {
     id: "mactan-shrine",
@@ -29,13 +27,8 @@ export const destinations = [
     note: "Explore on foot and respect designated visitor areas.",
     source: "https://philhistoricsites.nhcp.gov.ph/registry_database/lapulapu/",
     image: {
-      src: "/images/destinations/shrine.webp",
-      alt: "Historic Magellan monument in the grounds of Mactan Shrine",
-      author: "Patrickroque01",
-      file: commons(
-        "Mactan Shrine Magellan marker (Punta Engaño Road, Lapu-Lapu City, Cebu; 01-19-2024).jpg",
-      ),
-      license: "4.0",
+      src: "/images/destinations/heritage-garden-ai.webp",
+      alt: "Illustrative scenery of a tropical heritage garden, not Mactan Shrine",
     },
   },
   {
@@ -49,11 +42,8 @@ export const destinations = [
     note: "Check current hours and admission with the venue. These are artificial roses, not a flower farm.",
     source: "https://www.lakwatsero.com/spots/10000-roses-cafe-cordova-cebu/",
     image: {
-      src: "/images/destinations/roses.webp",
-      alt: "Illuminated white LED roses at 10,000 Roses Café after dark",
-      author: "Øyvind Holmstad",
-      file: commons("Cc 10000 roses Mactan.jpg"),
-      license: "4.0",
+      src: "/images/destinations/coastal-lights-ai.webp",
+      alt: "Illustrative scenery of a seaside light garden, not 10,000 Roses Café",
     },
   },
   {
@@ -68,11 +58,8 @@ export const destinations = [
     source:
       "https://philhistoricsites.nhcp.gov.ph/registry_database/the-cross-of-magellan/",
     image: {
-      src: "/images/destinations/cross.webp",
-      alt: "Magellan’s Cross beneath the painted ceiling of its pavilion",
-      author: "Joshua Lim (Sky Harbor)",
-      file: commons("Magellan's Cross full.jpg"),
-      license: "3.0",
+      src: "/images/destinations/heritage-streetscape-ai.webp",
+      alt: "Illustrative scenery of a Philippine heritage streetscape, not Magellan’s Cross",
     },
   },
   {
@@ -86,11 +73,8 @@ export const destinations = [
     note: "Check highland road conditions and venue access before setting out.",
     source: "https://cebu.travel/guides/cebu-highlands-guide",
     image: {
-      src: "/images/destinations/temple.webp",
-      alt: "Columned facade and courtyard of Temple of Leah",
-      author: "Ralff Nestor Nacor",
-      file: commons("Temple of Leah, Cebu City, Jan 2024.jpg"),
-      license: "4.0",
+      src: "/images/destinations/hilltop-colonnade-ai.webp",
+      alt: "Illustrative scenery of a hillside colonnade, not Temple of Leah",
     },
   },
   {
@@ -104,11 +88,8 @@ export const destinations = [
     note: "Several gardens use the Sirao name. Confirm the exact venue, current blooms and access before visiting.",
     source: "https://www.travelcebu.ph/blog/sirao-flower-garden/",
     image: {
-      src: "/images/destinations/sirao.webp",
-      alt: "Decorative windmills and planted terraces at the Original Sirao Garden",
-      author: "Martin Michlmayr",
-      file: commons("Original Sirao Garden 2022 05 009.jpg"),
-      license: "4.0",
+      src: "/images/destinations/highland-flowers-ai.webp",
+      alt: "Illustrative scenery of a tropical highland flower garden, not a specific Sirao venue",
     },
   },
   {
@@ -122,13 +103,8 @@ export const destinations = [
     note: "The official venue shuttle is an alternative if you prefer not to ride the highland approach.",
     source: "https://www.topscebu.ph/tickets-and-park-information",
     image: {
-      src: "/images/destinations/tops.webp",
-      alt: "Panoramic view over Cebu City photographed from Tops Lookout",
-      author: "Patrickroque01",
-      file: commons(
-        "Cebu City south view from Tops Lookout (Cebu City; 09-06-2022).jpg",
-      ),
-      license: "4.0",
+      src: "/images/destinations/highland-panorama-ai.webp",
+      alt: "Illustrative scenery of a tropical coastal city panorama, not the view from Tops Lookout",
     },
   },
 ];

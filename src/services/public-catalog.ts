@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 
 import { hasSupabasePublicConfig } from "@/lib/supabase/env";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicCatalogClient } from "@/lib/supabase/public-catalog";
 import type { MotorcycleModel } from "@/types/motorcycle";
 import testPublicCatalogSlugs from "@/lib/constants/test-public-catalog.json";
 
@@ -48,15 +48,37 @@ export type PublicCatalogResult = Readonly<{
   notice: string;
 }>;
 
+type PackageRateRow = Readonly<{
+  motorcycle_model_id: string;
+  pricing_type: string;
+  amount_php: number;
+  is_active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+}>;
+
+async function fetchPackageRates(
+  modelIds: string[],
+): Promise<readonly PackageRateRow[]> {
+  if (!modelIds.length) return [];
+  const { data, error } = await createPublicCatalogClient().rpc(
+    "get_public_package_rates",
+    { p_model_ids: modelIds },
+  );
+  if (error) throw new Error(`Catalog rates query failed: ${error.message}`);
+  return data ?? [];
+}
+
 type CatalogDependencies = Readonly<{
   isConfigured?: boolean;
   fetchRows?: () => Promise<readonly CatalogRow[]>;
+  fetchRateRows?: () => Promise<readonly PackageRateRow[]>;
   fetchMediaRows?: () => Promise<readonly MediaRow[]>;
   resolveStorageUrl?: (storagePath: string) => string;
 }>;
 
 async function fetchPublishedRows(): Promise<readonly CatalogRow[]> {
-  const supabase = await createClient();
+  const supabase = createPublicCatalogClient();
   const { data, error } = await supabase
     .from("motorcycle_models")
     .select(
@@ -74,7 +96,7 @@ async function fetchVerifiedMediaRows(
   modelIds: string[],
 ): Promise<readonly MediaRow[]> {
   if (!modelIds.length) return [];
-  const supabase = await createClient();
+  const supabase = createPublicCatalogClient();
   const { data, error } = await supabase
     .from("motorcycle_media")
     .select(
@@ -113,8 +135,15 @@ export async function getPublicMotorcycleCatalog(
   try {
     const rows = (
       await (dependencies.fetchRows ?? fetchPublishedRows)()
-    ).filter((row) => row.is_published === true && row.archived_at === null &&
-      (process.env.KJM_PAYMONGO_TEST !== "true" || testPublicCatalogSlugs.includes(row.slug)));
+    ).filter(
+      (row) =>
+        row.is_published === true &&
+        row.archived_at === null &&
+        !/^synthetic(?:-|$)/i.test(row.slug) &&
+        !/^synthetic\b/i.test(row.display_name) &&
+        (process.env.KJM_PAYMONGO_TEST !== "true" ||
+          testPublicCatalogSlugs.includes(row.slug)),
+    );
     const mediaRows = dependencies.fetchMediaRows
       ? await dependencies.fetchMediaRows()
       : dependencies.fetchRows
@@ -122,7 +151,38 @@ export async function getPublicMotorcycleCatalog(
         : await fetchVerifiedMediaRows(
             rows.flatMap((row) => (row.id ? [row.id] : [])),
           );
-    const supabase = dependencies.fetchRows ? null : await createClient();
+    // Package rates are optional: restricted/unavailable pricing must never hide models.
+    let rateRows: readonly PackageRateRow[] = [];
+    try {
+      rateRows = dependencies.fetchRateRows
+        ? await dependencies.fetchRateRows()
+        : dependencies.fetchRows
+          ? []
+          : await fetchPackageRates(
+              rows.flatMap((row) => (row.id ? [row.id] : [])),
+            );
+    } catch {
+      // Keep the catalog available; unconfigured package prices display “Ask KJM”.
+    }
+    const now = Date.now();
+    const packageRate = (id: string | undefined, type: string) => {
+      const values = rateRows
+        .filter(
+          (rate) =>
+            rate.motorcycle_model_id === id &&
+            rate.pricing_type === type &&
+            rate.is_active &&
+            Number.isFinite(rate.amount_php) &&
+            rate.amount_php >= 0 &&
+            (!rate.valid_from || Date.parse(rate.valid_from) <= now) &&
+            (!rate.valid_until || Date.parse(rate.valid_until) >= now),
+        )
+        .map((rate) => rate.amount_php);
+      return values.length ? Math.min(...values) : undefined;
+    };
+    const supabase = dependencies.fetchRows
+      ? null
+      : createPublicCatalogClient();
     return {
       motorcycles: rows.map((row) => {
         const notableFeatures = Array.isArray(row.notable_features)
@@ -131,8 +191,12 @@ export async function getPublicMotorcycleCatalog(
             )
           : [];
         const mappedMedia = mediaRows
-          .filter((item) => item.motorcycle_model_id === row.id &&
-            (process.env.KJM_PAYMONGO_TEST !== "true" || item.storage_path.startsWith("main-public-sync/")))
+          .filter(
+            (item) =>
+              item.motorcycle_model_id === row.id &&
+              (process.env.KJM_PAYMONGO_TEST !== "true" ||
+                item.storage_path.startsWith("main-public-sync/")),
+          )
           .sort(
             (a, b) =>
               Number(b.is_primary) - Number(a.is_primary) ||
@@ -165,6 +229,8 @@ export async function getPublicMotorcycleCatalog(
           slug: row.slug,
           model: row.display_name,
           dailyRatePhp: row.daily_rate_php,
+          weeklyRatePhp: packageRate(row.id, "weekly"),
+          monthlyRatePhp: packageRate(row.id, "monthly"),
           description:
             row.description ??
             "Additional model information is pending confirmation.",

@@ -28,6 +28,8 @@ export function validateRentalPeriod(
   const end = new Date(manilaInputToIso(endInput));
   if (start <= now) throw new Error("Pickup must be in the future.");
   if (end <= start) throw new Error("Return must be after pickup.");
+  if (end.getTime() - start.getTime() < 86400000)
+    throw new Error("Minimum rental duration is 24 hours.");
   return { startAt: start.toISOString(), endAt: end.toISOString() };
 }
 

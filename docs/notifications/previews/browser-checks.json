@@ -1,0 +1,112 @@
+[
+  {
+    "preview": "booking-confirmed",
+    "viewport": "mobile",
+    "width": 390,
+    "scroll": 390,
+    "height": 1646,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Your Ride Is Confirmed!",
+      "Booking Confirmed",
+      "Honda Click 160"
+    ]
+  },
+  {
+    "preview": "booking-confirmed",
+    "viewport": "desktop",
+    "width": 800,
+    "scroll": 800,
+    "height": 1553,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Your Ride Is Confirmed!",
+      "Booking Confirmed",
+      "Honda Click 160"
+    ]
+  },
+  {
+    "preview": "identity-verification-approved",
+    "viewport": "mobile",
+    "width": 390,
+    "scroll": 390,
+    "height": 1792,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Identity Verification Approved",
+      "Identity Verification Approved",
+      "What’s next?",
+      "Honda Click 160"
+    ]
+  },
+  {
+    "preview": "identity-verification-approved",
+    "viewport": "desktop",
+    "width": 800,
+    "scroll": 800,
+    "height": 1703,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Identity Verification Approved",
+      "Identity Verification Approved",
+      "What’s next?",
+      "Honda Click 160"
+    ]
+  },
+  {
+    "preview": "pickup-reminder",
+    "viewport": "mobile",
+    "width": 390,
+    "scroll": 390,
+    "height": 1624,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Pickup Reminder",
+      "Pickup Reminder",
+      "Honda Click 160"
+    ]
+  },
+  {
+    "preview": "pickup-reminder",
+    "viewport": "desktop",
+    "width": 800,
+    "scroll": 800,
+    "height": 1553,
+    "images": [
+      {
+        "loaded": true,
+        "alt": "KJM Motorcycle Rental"
+      }
+    ],
+    "headings": [
+      "Pickup Reminder",
+      "Pickup Reminder",
+      "Honda Click 160"
+    ]
+  }
+]

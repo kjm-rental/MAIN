@@ -28,8 +28,15 @@ describe("approved deposit options", () => {
     expect(
       depositOptionsSchema.safeParse({ ...disabled, id_enabled: true }).success,
     ).toBe(false));
-  it("keeps rental and refundable deposit separate", () =>
-    expect(pickupCashTotal(175000, 12345)).toBe(187345));
+  it("adds the separate refundable ₱2,500 cash deposit to the rental due at pickup", () => {
+    const options = depositOptionsSchema.parse({
+      ...disabled,
+      cash_enabled: true,
+      cash_amount_centavos: 250000,
+    });
+    expect(options.cash_amount_centavos).toBe(250000);
+    expect(pickupCashTotal(175000, options.cash_amount_centavos!)).toBe(425000);
+  });
   it.each([-1, 1.2, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
     "rejects invalid money %s",
     (value) => expect(() => pickupCashTotal(value, 0)).toThrow(),

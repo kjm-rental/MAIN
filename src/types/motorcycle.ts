@@ -31,6 +31,8 @@ export type MotorcycleModel = Readonly<{
   slug: string;
   model: string;
   dailyRatePhp: number;
+  weeklyRatePhp?: number;
+  monthlyRatePhp?: number;
   description: string;
   specifications: MotorcycleSpecifications;
   primaryImage?: MotorcycleMedia;

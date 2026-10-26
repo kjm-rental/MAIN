@@ -1,0 +1,56 @@
+# Delivery, collection and guest QRPh rollout
+
+## What is implemented
+
+MAIN: four service choices when enabled; independent owner-enabled areas and full addresses; optional hotel, landmark, Google Maps and instructions; Manila schedule/hour validation; authoritative delivery/collection quotes; independent saved fees included in the existing payable booking total; cash-on-pickup/delivery and gated QRPh; disabled future methods; guest receipt/service/payment status; guest-cookie-bound hosted PayMongo checkout and status reconciliation. Deposit remains the existing required cash snapshot and is excluded from the gateway amount.
+
+ADMIN: Settings → Delivery & Collection and Payment Methods; main switch, independent daily service windows, area add/edit/enable/disable and safe removal; owner-entered whole-PHP fees matching the existing integer-PHP architecture; immutable booking service/address/fee snapshots; delivered/collected actions reuse the existing inspection workflow; scheduled delivery purple, scheduled collection pink, self pickup light blue, reserved blue, actual handover green, return orange; booking details and existing notification templates/outbox include service details. A paid-but-unfulfillable checkout remains `review_required`, with an owner alert and no automatic refund or booking confirmation.
+
+Service windows are independent daily windows (no overnight interval), not motorcycle rental hours. No example areas or prices are seeded. Disabled service settings hide choices without removing saved agreements. Existing delivery bookings keep their fees and addresses. Rescheduling a booking with paid delivery/collection requires owner service review; the migration blocks silently changing its agreed schedule. Old self-pickup rescheduling is preserved.
+
+## Database review/application — no SQL executed here
+
+1. Review/apply `202610260037_delivery_collection.sql` after 036. It adds service configuration, areas, immutable service snapshots and an explicit `bookings.services_total_php` component. It replaces the booking total CHECK with base + extras + services. Historical values remain zero for the new component; no historical transaction or quoted price is overwritten. It wraps the existing guest creation function so inventory locks, original pricing and confirmation rules remain authoritative.
+2. For QRPh only, inspect whether the pre-existing LIVE foundation `202610130026_paymongo_live_booking_payments.sql` is already installed. Do not rerun an installed migration; review/install the missing LIVE foundation only if needed. Delivery migration 037 works without it and reports QRPh unavailable.
+3. Review/apply `202610260038_guest_qrph_checkout.sql` after both 037 and the LIVE foundation. It permits accountless provider receipts while keeping offline events attributed to an administrator, binds guest checkout to the immutable cookie hash and saved method, and reuses existing live attempts/receipts/reconciliation. Its reviewed SQL adds `payment_successful` to existing enabled notification events, preserving channel switches and other event preferences. No existing queue is replayed. Provider receipt/settlement guards and duplicate constraints remain in force.
+4. Review grants, RLS, function definitions, default-off switches, total constraints and transactional/concurrency behavior in the intended Supabase project. Application mocks/source contracts are not PostgreSQL runtime/concurrency verification.
+
+Before applying 037/038 the new delivery settings are unavailable; existing self-pickup/cash uses the current booking infrastructure. No service charges are introduced before settings and real areas are saved. Legacy retries keep their originally saved totals.
+
+## PayMongo findings and blockers
+
+The earlier delivery implementation found test credentials. The subsequent checkout review found an existing live key in `PAYMONGO_SECRET_KEY` and verified QRPh capability with a read-only authenticated merchant API request. Live webhook/reconciliation secrets, mode, origin and activation gates remain missing, and database readiness remains false. No provider session or charge was created. See `../checkout-live-qrph/README.md` for the current configuration and rollout status.
+
+The existing integration uses PayMongo `/v1/checkout_sessions`, still documented by PayMongo, rather than introducing another payment system. Only `qrph` is allowed in live creation. Hosted checkout supplies the genuine QR payment interface. Existing signed webhook verification and authenticated session retrieval validate booking reference, mode, amount, currency, provider ID and paid status before immutable receipt/ledger settlement. Redirects and client status/amount fields never settle payments. The same active hosted session is reused for retries. Expired/unresolved creation is reported for reconciliation/owner handling instead of creating another payable session or booking. An expired QR can be regenerated by the provider within its active hosted session. A fully expired KJM session requires owner assistance; this implementation does not silently create a replacement payable session.
+
+Booking status and payment are independent. Guest QRPh creation is limited by the existing finalized, confirmed-reservation rule. International/pending bookings wait for owner approval; status pages expose that state. QR creation adds no inventory holds and does not alter existing reservation expiry policy. Confirmed reservations retain existing confirmation policy, while unfinished pending bookings retain existing hold/expiry handling.
+
+## Configuration required before live activation
+
+Use the existing server-only variables; never expose keys to the browser:
+
+- `PAYMONGO_MODE=live`
+- Keep the existing live `PAYMONGO_SECRET_KEY`, or use the dedicated `PAYMONGO_LIVE_SECRET_KEY`; do not overwrite working credentials
+- `PAYMONGO_LIVE_WEBHOOK_SECRET` for the registered live webhook
+- `PAYMONGO_LIVE_RECONCILIATION_SECRET` (at least 32 characters) and the existing protected scheduler
+- `PAYMONGO_APP_ORIGIN` set to the actual HTTPS public origin
+- `PAYMONGO_LIVE_ENABLED=true` only after verification
+- Existing production Supabase URL/service key, notification workers and transport credentials remain unchanged.
+- `NEXT_PUBLIC_QRPH_LIVE_VERIFIED=true` in MAIN and ADMIN only AFTER the checks below, then restart the applications so the public build-time gate matches the server configuration.
+
+### Exact activation sequence
+
+1. Review/apply required SQL once, leaving public QRPh disabled and cash enabled.
+2. Confirm the live merchant API capabilities include `qrph` using the live key, and verify hosted checkout works for this merchant/account. The dashboard label alone is insufficient.
+3. Configure a reachable HTTPS `/api/paymongo/webhook` endpoint for the existing `checkout_session.payment.paid` event and its correct live signing secret. Verify authentic/invalid signature behavior and repeated/delayed delivery against the actual provider format.
+4. Configure the existing reconciliation scheduler and test crash recovery, unresolved session creation, expiry, browser closure and late paid receipts. Verify exact saved totals including services and excluding cash deposit; verify currency/mode/reference mismatches are rejected. Verify paid-but-unfulfillable receipts enter owner review without reviving the booking or refunding automatically.
+5. Use an explicitly owner-authorized acceptance workflow to verify an actual provider result; no real acceptance booking/payment was created by this task. Verify ledger/outbox deduplication, concurrency with cash, duplicate webhook handling, immutable fees, identity/handover guards and deposit separation.
+6. Only after those checks, have the authorized operator record the existing LIVE foundation readiness flags (`migration_verified`, `webhook_verified`, `reconciliation_verified`, `concurrency_verified`) and enable that foundation. Do not mark checks passed based solely on mocks. Keep its allowed methods restricted to QRPh.
+7. Set the environment verification gate and restart both apps. Then the owner can enable QRPh through ADMIN → Settings → Payment Methods. Cash can be disabled only when a verified QRPh alternative is enabled. Unsupported channels cannot be enabled. Turning QRPh off blocks new checkout while existing webhook/reconciliation can drain.
+8. Enter actual service areas, fees and hours in ADMIN; enable the service only when the owner is ready.
+
+Official references checked: https://docs.paymongo.com/reference/create-a-checkout and https://docs.paymongo.com/docs/payment-channels-hosted-checkout (both v1/v2 described), plus the QRPh API guide https://docs.paymongo.com/docs/payment-acceptance-qr-ph-api.
+
+## Verification limits
+
+Focused tests use mocks and source contracts; no real Supabase booking, service area, handover, payment, deposit, refund or notification was created. No live email/Telegram delivery, provider settlement or SQL runtime claim is made. No production build, deployment, push, new test environment or automatic migration was performed.

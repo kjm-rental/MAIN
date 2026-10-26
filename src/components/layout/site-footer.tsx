@@ -127,7 +127,7 @@ export function SiteFooter() {
                 href="/photo-credits"
                 className="footer-link inline-flex min-h-11 items-center text-sm"
               >
-                Photo credits
+                About our images
               </Link>
             </li>
           </ul>

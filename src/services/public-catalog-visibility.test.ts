@@ -33,11 +33,19 @@ const rows = [
     is_published: true,
     archived_at: "2026-10-09",
   },
+  {
+    id: "synthetic",
+    slug: "synthetic-readiness-fixture",
+    display_name: "Synthetic Readiness Test",
+    daily_rate_php: 250,
+    is_published: true,
+    archived_at: null,
+  },
 ];
 vi.mock("next/server", () => ({ connection: vi.fn() }));
 vi.mock("@/lib/supabase/env", () => ({ hasSupabasePublicConfig: () => true }));
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({
+vi.mock("@/lib/supabase/public-catalog", () => ({
+  createPublicCatalogClient: () => ({
     from: (table: string) => {
       let data =
         table === "motorcycle_models"
@@ -122,11 +130,20 @@ describe("public catalog visibility across sessions", () => {
   });
   it("isolated test storefront hides published synthetic fixtures without deleting them", async () => {
     vi.stubEnv("KJM_PAYMONGO_TEST", "true");
-    rows.push({ ...rows[0], id: "synthetic", slug: "synthetic-p9-concurrency-fixture" });
+    rows.push({
+      ...rows[0],
+      id: "synthetic",
+      slug: "synthetic-p9-concurrency-fixture",
+    });
     try {
       const result = await getPublicMotorcycleCatalog();
-      expect(result.motorcycles.map(model => model.slug)).toEqual([rows[0].slug]);
-      expect(rows.some(row => row.id === "synthetic")).toBe(true);
-    } finally { rows.pop(); vi.unstubAllEnvs(); }
+      expect(result.motorcycles.map((model) => model.slug)).toEqual([
+        rows[0].slug,
+      ]);
+      expect(rows.some((row) => row.id === "synthetic")).toBe(true);
+    } finally {
+      rows.pop();
+      vi.unstubAllEnvs();
+    }
   });
 });

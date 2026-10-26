@@ -1,4 +1,17 @@
 "use client";
+import { customerFieldErrors } from "@/lib/guest-checkout/validation";
+import { rentalDuration } from "@/lib/rental-duration";
+import { DeliveryChoice } from "@/components/website/delivery-choice";
+import {
+  selfService,
+  type ServiceConfig,
+  type ServiceSelection,
+  type ServiceQuote,
+} from "@/lib/delivery/schema";
+import { authoritativeRentalQuote } from "@/lib/authoritative-rental-quote";
+import { CheckoutSummary } from "@/components/website/checkout-summary";
+import type { RentalPricing } from "@/lib/rental-pricing";
+import { BookingEmailStatus } from "./booking-email-status";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,18 +40,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  bookingCustomerSchema,
-  estimatedStartedDays,
-  validateRentalPeriod,
-} from "@/lib/booking";
+import { validateRentalPeriod } from "@/lib/booking";
 import { SecurityDepositChoice } from "@/components/website/security-deposit-choice";
 import type { DepositOptions } from "@/lib/security-deposits";
-import { pickupCashTotal } from "@/lib/security-deposits";
 import { formatPhp, formatCentavos } from "@/lib/currency";
 import { TurnstileChallenge } from "@/components/website/turnstile-challenge";
 import type { Json } from "@/types/database";
 import type { MotorcycleModel } from "@/types/motorcycle";
+import { customerOnlinePaymentsEnabled } from "@/lib/payment-availability";
 import { PaymentMethodChoice } from "./payment-method-choice";
 
 type Settings = {
@@ -127,6 +136,59 @@ export function BookingCheckout({
   depositOptions: DepositOptions | null;
 }) {
   const router = useRouter();
+  const [selectedPaymentMethod, setPaymentMethod] = useState<"cash" | "online">(
+    "cash",
+  );
+
+  const [serviceConfig, setServiceConfig] = useState<ServiceConfig | null>(
+    null,
+  );
+  const [services, setServices] = useState<ServiceSelection>(selfService);
+  const [serviceQuote, setServiceQuote] = useState<ServiceQuote | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/delivery/options", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw Error();
+        return r.json();
+      })
+      .then((c) => {
+        if (active) {
+          setServiceConfig(c);
+          if (!c.cash_enabled && c.qrph_enabled && c.qrph_ready)
+            setPaymentMethod("online");
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+  async function quoteServices(start: string, end: string) {
+    if (!serviceConfig)
+      throw Error(
+        "Service options are temporarily unavailable. Please refresh or contact KJM.",
+      );
+    if (!services.delivery && !services.collection) {
+      const result = {
+        deliveryFeeCentavos: 0,
+        collectionFeeCentavos: 0,
+        totalCentavos: 0,
+      };
+      setServiceQuote(result);
+      return result;
+    }
+    const r = await fetch("/api/delivery/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selection: services, start, end }),
+    });
+    const result = await r.json();
+    if (!r.ok) throw Error(result.error);
+    setServiceQuote(result);
+    return result as ServiceQuote;
+  }
+
   const documentDetails = useRef<HTMLDetailsElement>(null);
   const stepBody = useRef<HTMLDivElement>(null);
   const [motorcycle, setMotorcycle] = useState(initialMotorcycle);
@@ -138,12 +200,12 @@ export function BookingCheckout({
     [error, setError] = useState(""),
     [bookingId, setBookingId] = useState(""),
     [reference, setReference] = useState(""),
-    [requiresGuestAuth, setRequiresGuestAuth] = useState(true),
     [captchaToken, setCaptchaToken] = useState(""),
     [extraQuantities, setExtraQuantities] = useState<Record<string, number>>(
       {},
     ),
     [quote, setQuote] = useState<{
+      rental_pricing?: RentalPricing;
       pricing_units: number;
       daily_rate_php: number;
       base_total_centavos: number;
@@ -154,6 +216,10 @@ export function BookingCheckout({
       policy_version?: string;
       cash_due_at_pickup_centavos?: number;
     } | null>(null);
+  const quotedPayable = quote
+    ? quote.total_centavos +
+      (bookingId ? 0 : (serviceQuote?.totalCentavos ?? 0))
+    : 0;
   const [acceptedTermsVersion, setAcceptedTermsVersion] = useState<
     string | null
   >(null);
@@ -161,45 +227,84 @@ export function BookingCheckout({
     completed: 0,
     total: 0,
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [reservationStatus, setReservationStatus] = useState("");
   const [draftBookingId, setDraftBookingId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "online">("cash");
+  const paymentMethod = customerOnlinePaymentsEnabled
+    ? selectedPaymentMethod
+    : "cash";
   const [onlineMethods, setOnlineMethods] = useState<("card" | "qrph")[]>([]);
   const [onlineEnabled, setOnlineEnabled] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
   const onlinePaymentKey = useRef(crypto.randomUUID());
   useEffect(() => {
+    if (!customerOnlinePaymentsEnabled) return;
     let active = true;
     void fetch("/api/paymongo/methods", { cache: "no-store" })
-      .then(response => response.json()).then(data => {
+      .then((response) => response.json())
+      .then((data) => {
         if (active && Array.isArray(data.methods)) {
-          setOnlineMethods(data.methods.filter((method: unknown) => method === "card" || method === "qrph"));
+          setOnlineMethods(
+            data.methods.filter(
+              (method: unknown) => method === "card" || method === "qrph",
+            ),
+          );
           setOnlineEnabled(data.onlineEnabled === true);
         }
-      }).catch(() => undefined);
-    return () => { active = false; };
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, []);
   async function payOnline(id: string) {
-    if (!onlineEnabled) { setPaymentMessage("Online checkout is not available yet."); return; }
+    if (!customerOnlinePaymentsEnabled || !onlineEnabled) {
+      setPaymentMessage("Online checkout is not available yet.");
+      return;
+    }
     setBusy(true);
     setPaymentMessage("");
     try {
-      const response = await fetch("/api/paymongo/checkout", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: id, idempotencyKey: onlinePaymentKey.current }),
+      const response = await fetch(`/api/guest/bookings/${id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: id,
+          idempotencyKey: onlinePaymentKey.current,
+        }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error("Online checkout is unavailable. Your reservation is saved; please try again later.");
+      if (!response.ok)
+        throw new Error(
+          "Online checkout is unavailable. Your reservation is saved; please try again later.",
+        );
       if (typeof result.checkoutUrl === "string") {
         const destination = new URL(result.checkoutUrl);
-        if (destination.protocol !== "https:" || destination.hostname !== "checkout.paymongo.com" || destination.port || destination.username || destination.password) throw new Error("Secure checkout is unavailable.");
+        if (
+          destination.protocol !== "https:" ||
+          destination.hostname !== "checkout.paymongo.com" ||
+          destination.port ||
+          destination.username ||
+          destination.password
+        )
+          throw new Error("Secure checkout is unavailable.");
         window.location.assign(destination.href);
-      } else setPaymentMessage(result.status === "paid" ? "Payment verified. View your booking for details." : "Your payment is awaiting verification. Please check your booking status.");
-    } catch (e) { setPaymentMessage(e instanceof Error ? e.message : "Online checkout is unavailable."); }
-    finally { setBusy(false); }
+      } else
+        setPaymentMessage(
+          result.status === "paid"
+            ? "Payment verified. View your booking for details."
+            : "Your payment is awaiting verification. Please check your booking status.",
+        );
+    } catch (e) {
+      setPaymentMessage(
+        e instanceof Error ? e.message : "Online checkout is unavailable.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   const [depositOption, setDepositOption] = useState(() =>
-    depositOptions?.cash_enabled && !depositOptions.id_enabled ? "cash" : "",
+    depositOptions?.cash_enabled ? "cash" : "",
   );
   const [depositDocument, setDepositDocument] = useState("");
   const submissionPending = useRef(false);
@@ -217,10 +322,9 @@ export function BookingCheckout({
   useEffect(() => {
     stepBody.current?.scrollTo(0, 0);
   }, [step]);
-  const days = dates ? estimatedStartedDays(dates.startAt, dates.endAt) : 0;
-  const estimate = quote
-    ? quote.total_centavos / 100
-    : days * motorcycle.dailyRatePhp;
+  const durationLabel = dates
+    ? (rentalDuration(dates.startAt, dates.endAt)?.label ?? "Choose your dates")
+    : "Choose your dates";
   const selectedExtras = extras.filter(
     (extra) => (extraQuantities[extra.id] ?? 0) > 0,
   );
@@ -231,12 +335,67 @@ export function BookingCheckout({
   const update = (key: keyof Form, value: string) => {
     if (key === "pickup" || key === "returnAt") setQuote(null);
     setForm((v) => ({ ...v, [key]: value }));
+    setFieldErrors((v) => ({ ...v, [key]: "" }));
   };
+  async function authoritativeQuote(
+    startAt: string,
+    endAt: string,
+    withDeposit: boolean,
+  ) {
+    const result = await authoritativeRentalQuote(
+      createClient(),
+      {
+        p_model_id: motorcycle.id!,
+        p_start_at: startAt,
+        p_end_at: endAt,
+        p_extra_items: extraItems,
+      },
+      withDeposit
+        ? {
+            option: depositOption!,
+            document: depositOption === "eligible_id" ? depositDocument : null,
+          }
+        : undefined,
+    );
+    return {
+      data: result.data as unknown as NonNullable<typeof quote>[] | null,
+      error: result.error,
+    };
+  }
   useEffect(() => {
-    void createClient()
-      .auth.getUser()
-      .then(({ data }) => setRequiresGuestAuth(!data.user));
-  }, []);
+    if (!dates || !motorcycle.id || step !== 1) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void authoritativeRentalQuote(createClient(), {
+        p_model_id: motorcycle.id!,
+        p_start_at: dates.startAt,
+        p_end_at: dates.endAt,
+        p_extra_items: [],
+      })
+        .then((result) => {
+          if (cancelled) return;
+          if (result.error || !result.data?.[0]) {
+            setQuote(null);
+            setError(
+              "We couldn’t calculate this price. Please check your dates and try again.",
+            );
+          } else {
+            setQuote(result.data[0] as unknown as NonNullable<typeof quote>);
+            setError("");
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setQuote(null);
+            setError("Server price unavailable. Try again.");
+          }
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [dates, motorcycle.id, step]);
   async function next() {
     if (submissionPending.current) return;
     submissionPending.current = true;
@@ -263,12 +422,7 @@ export function BookingCheckout({
               },
             ],
           }),
-          client.rpc("get_booking_quote_v2", {
-            p_model_id: motorcycle.id,
-            p_start_at: period.startAt,
-            p_end_at: period.endAt,
-            p_extra_items: extraItems,
-          }),
+          authoritativeQuote(period.startAt, period.endAt, false),
         ]);
         if (availability.error)
           throw new Error(availabilityErrorMessage(availability.error));
@@ -276,12 +430,19 @@ export function BookingCheckout({
           throw new Error("No physical unit is available for those dates.");
         if (serverQuote.error || !serverQuote.data?.[0])
           throw new Error(
-            serverQuote.error?.message ??
-              "A server price could not be calculated.",
+            "We couldn’t calculate this rental price. Please check your dates and try again.",
           );
         setQuote(serverQuote.data[0]);
       }
-      if (step === 2) bookingCustomerSchema.parse(form);
+      if (step === 2) {
+        if (dates) await quoteServices(dates.startAt, dates.endAt);
+        const errors = customerFieldErrors(form);
+        setFieldErrors(errors);
+        if (Object.keys(errors).length) {
+          setError("Please check the highlighted details.");
+          return;
+        }
+      }
       if (step === 3) {
         for (const file of Object.values(files)) {
           if (file) {
@@ -315,24 +476,21 @@ export function BookingCheckout({
           (depositOption === "eligible_id" && !depositDocument)
         )
           throw new Error("Choose an approved security deposit arrangement.");
-        const result = await createClient().rpc("get_booking_quote_v3", {
-          p_model_id: motorcycle.id!,
-          p_start_at: dates.startAt,
-          p_end_at: dates.endAt,
-          p_extra_items: extraItems,
-          p_deposit_option: depositOption,
-          p_document_type:
-            depositOption === "eligible_id" ? depositDocument : null,
-        });
+        await quoteServices(dates.startAt, dates.endAt);
+        const result = await authoritativeQuote(
+          dates.startAt,
+          dates.endAt,
+          true,
+        );
         if (result.error || !result.data?.[0])
           throw new Error(
-            result.error?.message ?? "Deposit quote could not be verified.",
+            "We couldn’t verify this price. Please check your dates and deposit choice.",
           );
         setQuote(result.data[0]);
       }
       setStep((v) => Math.min(4, v + 1));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Check the required fields.");
+      setError(friendlyCheckoutError(e));
     } finally {
       submissionPending.current = false;
       setBusy(false);
@@ -343,10 +501,13 @@ export function BookingCheckout({
     setBusy(true);
     try {
       if (draftBookingId) {
-        const r = await createClient().rpc("abandon_booking_request", {
-          p_booking_id: draftBookingId,
+        const response = await fetch(`/api/guest/bookings/${draftBookingId}`, {
+          method: "DELETE",
         });
-        if (r.error) throw new Error(r.error.message);
+        if (!response.ok)
+          throw new Error(
+            "The unfinished request could not be reset. Please contact KJM.",
+          );
       }
       idempotencyKey.current = crypto.randomUUID();
       documentProgress.current.clear();
@@ -404,50 +565,54 @@ export function BookingCheckout({
           );
       }
 
-      const supabase = createClient();
-      let {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        if (!captchaToken)
-          throw new Error("Complete the human verification challenge.");
-        const auth = await supabase.auth.signInAnonymously({
-          options: { captchaToken },
-        });
-        if (auth.error)
-          throw new Error(
-            "Secure guest checkout is unavailable. Anonymous Supabase sign-in must be enabled.",
-          );
-        user = auth.data.user;
-      }
-      if (!user) throw new Error("Secure guest session could not be created.");
-      const result = await supabase.rpc("submit_booking_request_v3", {
-        p_idempotency_key: idempotencyKey.current,
-        p_model_id: motorcycle.id,
-        p_start_at: dates.startAt,
-        p_end_at: dates.endAt,
-        p_extra_items: extraItems,
-        p_full_name: form.fullName,
-        p_email: form.email,
-        p_phone: form.phone,
-        p_country: form.country,
-        p_customer_type: form.customerType,
-        p_identity_name: form.identityName,
-        p_license_name: form.licenseName,
-        p_license_country: form.licenseCountry,
-        p_license_expiration: form.licenseExpiration,
-        p_vehicle_categories: form.vehicleCategories,
-        p_entry_date: form.entryDate || null,
-        p_privacy_consent: true,
-        p_declaration: true,
-        p_deposit_option: depositOption,
-        p_policy_version: quote.policy_version,
-        p_document_type:
-          depositOption === "eligible_id" ? depositDocument : null,
+      if (
+        !serviceQuote ||
+        ((services.delivery || services.collection) && !serviceConfig?.enabled)
+      )
+        throw Error(
+          "Review the delivery and collection quote before submitting.",
+        );
+      const response = await fetch("/api/guest/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          p_services: services,
+          p_expected_service_centavos: serviceQuote.totalCentavos,
+          p_expected_delivery_centavos: serviceQuote.deliveryFeeCentavos,
+          p_expected_collection_centavos: serviceQuote.collectionFeeCentavos,
+          p_payment_method: paymentMethod === "online" ? "qrph" : "cash",
+          p_idempotency_key: idempotencyKey.current,
+          p_model_id: motorcycle.id,
+          p_start_at: dates.startAt,
+          p_end_at: dates.endAt,
+          p_extra_items: extraItems,
+          p_full_name: form.fullName,
+          p_email: form.email,
+          p_phone: form.phone,
+          p_country: form.country,
+          p_customer_type: form.customerType,
+          p_identity_name: form.identityName,
+          p_license_name: form.licenseName,
+          p_license_country: form.licenseCountry,
+          p_license_expiration: form.licenseExpiration,
+          p_vehicle_categories: form.vehicleCategories,
+          p_entry_date: form.entryDate || null,
+          p_privacy_consent: true,
+          p_declaration: true,
+          p_deposit_option: depositOption,
+          p_policy_version: quote.policy_version,
+          p_document_type:
+            depositOption === "eligible_id" ? depositDocument : null,
+          captchaToken,
+        }),
       });
-      if (result.error) throw result.error;
-      const booking = result.data[0];
-      if (!booking) throw new Error("The reservation could not be created.");
+      const booking = await response.json();
+      if (!response.ok) {
+        if (booking.fields) setFieldErrors(booking.fields);
+        throw new Error(
+          "We couldn’t save your request. Please check your details, complete the security check again, and retry.",
+        );
+      }
       setDraftBookingId(booking.booking_id);
       setUploadProgress({
         completed: 0,
@@ -468,66 +633,47 @@ export function BookingCheckout({
           throw new Error(
             "A document has an unsupported format or exceeds 8 MB.",
           );
-        const ext =
-          file.name
-            .split(".")
-            .pop()
-            ?.replace(/[^a-z0-9]/gi, "") || "bin";
-        let progress = documentProgress.current.get(kind);
-        if (!progress || progress.file !== file) {
-          progress = {
-            file,
-            path: `${user.id}/${booking.booking_id}/${crypto.randomUUID()}.${ext}`,
-            uploaded: false,
-          };
-          documentProgress.current.set(kind, progress);
-        }
-        const path = progress.path;
-        const existingDocument = await supabase
-          .from("verification_documents")
-          .select("id")
-          .eq("storage_path", path)
-          .maybeSingle();
-        if (existingDocument.error) throw existingDocument.error;
-        if (existingDocument.data) {
+        const uploaded = documentProgress.current.get(kind);
+        if (uploaded?.file === file && uploaded.uploaded) {
           setUploadProgress((v) => ({ ...v, completed: v.completed + 1 }));
           continue;
         }
-        if (!progress.uploaded) {
-          const upload = await supabase.storage
-            .from("identity-verification")
-            .upload(path, file, { contentType: file.type });
-          if (upload.error) throw upload.error;
-          progress.uploaded = true;
-        }
-        const row = await supabase.from("verification_documents").insert({
-          verification_id: booking.verification_id,
-          booking_id: booking.booking_id,
-          owner_user_id: user.id,
-          document_kind: kind,
-          storage_path: path,
-          mime_type: file.type,
-          size_bytes: file.size,
-        });
-        if (row.error) throw row.error;
+        const uploadForm = new FormData();
+        uploadForm.set("file", file);
+        uploadForm.set("kind", kind);
+        const upload = await fetch(
+          `/api/guest/bookings/${booking.booking_id}/documents`,
+          { method: "POST", body: uploadForm },
+        );
+        if (!upload.ok)
+          throw new Error(
+            "Your document could not be saved. Please try again or contact KJM.",
+          );
+        documentProgress.current.set(kind, { file, path: "", uploaded: true });
         setUploadProgress((v) => ({ ...v, completed: v.completed + 1 }));
       }
+      const finalResponse = await fetch(
+        `/api/guest/bookings/${booking.booking_id}/finalize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            termsVersion: acceptedTermsVersion!,
+            accepted: true,
+          }),
+        },
+      );
+      const finalRecord = await finalResponse.json();
+      if (!finalResponse.ok)
+        throw new Error(
+          "We couldn’t complete your request. Check your documents and dates, then retry. Your uploaded documents are preserved.",
+        );
       // Advisory checks never delay or change a successfully saved reservation.
       void fetch(`/api/verification/${booking.booking_id}/prescreen`, {
         method: "POST",
         keepalive: true,
       }).catch(() => undefined);
-      const finalized = await supabase.rpc("finalize_booking_request", {
-        p_booking_id: booking.booking_id,
-        p_terms_version: acceptedTermsVersion!,
-        p_terms_accepted: true,
-      });
-      if (finalized.error || !finalized.data?.[0])
-        throw new Error(
-          finalized.error?.message ??
-            "Reservation confirmation could not be completed. Your pending request and uploaded documents are preserved; retry safely.",
-        );
-      setReservationStatus(finalized.data[0].booking_status);
+      setReservationStatus(finalRecord.booking_status);
       setReference(booking.booking_reference);
       setBookingId(booking.booking_id);
       setQuote((current) =>
@@ -542,18 +688,42 @@ export function BookingCheckout({
       );
       setStep(5);
       if (paymentMethod === "online") {
-        if (finalized.data[0].booking_status === "confirmed") await payOnline(booking.booking_id);
-        else setPaymentMessage("Your booking requires approval before online payment is available.");
+        if (finalRecord.booking_status === "confirmed")
+          await payOnline(booking.booking_id);
+        else
+          setPaymentMessage(
+            "Your booking requires approval before online payment is available.",
+          );
       }
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Reservation submission failed.",
-      );
+      setError(friendlyCheckoutError(e));
     } finally {
       submissionPending.current = false;
       setBusy(false);
     }
   }
+  const checkoutSummary = (
+    <CheckoutSummary
+      model={motorcycle.model}
+      image={motorcycle.primaryImage}
+      pickup={form.pickup ? formatBookingDate(form.pickup) : "Choose pickup"}
+      returnAt={
+        form.returnAt ? formatBookingDate(form.returnAt) : "Choose return"
+      }
+      duration={durationLabel}
+      rentalCentavos={quote?.base_total_centavos ?? null}
+      extrasCentavos={quote?.extras_total_centavos ?? 0}
+      deliveryCentavos={serviceQuote?.deliveryFeeCentavos ?? 0}
+      collectionCentavos={serviceQuote?.collectionFeeCentavos ?? 0}
+      totalCentavos={quote ? quotedPayable : null}
+      depositCentavos={quote?.deposit_required_centavos ?? null}
+      online={paymentMethod === "online"}
+      pricing={quote?.rental_pricing}
+      servicesPending={
+        !!(services.delivery || services.collection) && !serviceQuote
+      }
+    />
+  );
   return (
     <div className="mx-auto max-w-6xl">
       <div className="minimal-progress">
@@ -586,12 +756,16 @@ export function BookingCheckout({
             )}
             {configured && !submissionEnabled && (
               <p role="status" className="journey-launch-notice">
-                You can complete and review the form. Reservation submission is disabled for this local preview.
+                You can complete and review the form. Reservation submission is
+                disabled for this local preview.
               </p>
             )}
-            {paymentTestMode && <p role="status" className="journey-launch-notice">
-              Local TEST session. Use the payment simulator; do not scan or pay QR codes. No production booking or payment records are used.
-            </p>}
+            {paymentTestMode && customerOnlinePaymentsEnabled && (
+              <p role="status" className="journey-launch-notice">
+                Local TEST session. Use the payment simulator; do not scan or
+                pay QR codes. No production booking or payment records are used.
+              </p>
+            )}
             {step === 0 && (
               <div>
                 <Heading
@@ -696,13 +870,11 @@ export function BookingCheckout({
                 />
                 {dates && (
                   <div className="bg-ocean/5 border-ocean/15 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 text-sm">
-                    <span className="font-bold">
-                      {days} rental day{days === 1 ? "" : "s"}
-                    </span>
+                    <span className="font-bold">{durationLabel}</span>
                     <span className="text-ocean font-bold">
                       {quote
-                        ? formatCentavos(quote.total_centavos)
-                        : `${formatPhp(estimate)} estimated rental`}
+                        ? formatCentavos(quotedPayable)
+                        : "Requesting server price…"}
                     </span>
                     <p className="text-muted w-full text-xs">
                       Your exact price, extras and deposit are verified before
@@ -828,7 +1000,7 @@ export function BookingCheckout({
                           item.price_php *
                             extraQuantities[item.id] *
                             (item.pricing_model === "per_day"
-                              ? Math.max(days, 1)
+                              ? Math.max(quote?.pricing_units ?? 1, 1)
                               : 1),
                         0,
                       ),
@@ -843,26 +1015,41 @@ export function BookingCheckout({
                   title="Your Details"
                   text="Enter your details as they appear on your ID."
                 />
+                {serviceConfig && (
+                  <DeliveryChoice
+                    config={serviceConfig}
+                    value={services}
+                    onChange={(value) => {
+                      setServices(value);
+                      setServiceQuote(null);
+                    }}
+                  />
+                )}
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Input
                     label="Full legal name"
+                    error={fieldErrors.fullName}
                     value={form.fullName}
                     onChange={(v) => update("fullName", v)}
                   />
                   <Input
                     label="Email"
                     type="email"
+                    error={fieldErrors.email}
                     value={form.email}
                     onChange={(v) => update("email", v)}
                   />
+
                   <Input
                     label="Mobile number"
                     type="tel"
+                    error={fieldErrors.phone}
                     value={form.phone}
                     onChange={(v) => update("phone", v)}
                   />
                   <Input
                     label="Country of residence"
+                    error={fieldErrors.country}
                     value={form.country}
                     onChange={(v) => update("country", v)}
                   />
@@ -997,7 +1184,11 @@ export function BookingCheckout({
             {step === 3 && (
               <div className="minimal-document-step">
                 <SecurityDepositChoice
-                  options={depositOptions}
+                  options={
+                    depositOptions
+                      ? { ...depositOptions, id_enabled: false }
+                      : depositOptions
+                  }
                   value={depositOption}
                   documentType={depositDocument}
                   onChange={(value) => {
@@ -1022,101 +1213,75 @@ export function BookingCheckout({
                   title="Review & Confirm"
                   text="Check your reservation before confirming."
                 />
-                <PaymentMethodChoice value={paymentMethod} methods={onlineMethods} onlineEnabled={onlineEnabled} disabled={busy} onChange={setPaymentMethod} />
-                <div className="minimal-review-ride">
-                  <MotorcycleVisual
-                    model={motorcycle.model}
-                    media={motorcycle.primaryImage}
-                    compact
-                  />
-                  <div>
-                    <h3>{motorcycle.model}</h3>
-                    <p>{formatPhp(motorcycle.dailyRatePhp)} / day</p>
+                <PaymentMethodChoice
+                  value={paymentMethod}
+                  methods={onlineMethods}
+                  onlineEnabled={
+                    onlineEnabled &&
+                    !!serviceConfig?.qrph_enabled &&
+                    !!serviceConfig?.qrph_ready
+                  }
+                  cashEnabled={serviceConfig?.cash_enabled !== false}
+                  disabled={busy}
+                  onChange={setPaymentMethod}
+                />
+                <section className="border-deep-teal/10 rounded-xl border bg-white p-4 text-sm">
+                  <h3 className="text-deep-teal font-bold">
+                    Your booking details
+                  </h3>
+                  <p className="text-muted mt-2">
+                    {form.fullName} · {form.email}
+                  </p>
+                  <p className="text-muted mt-1">{form.phone}</p>
+                  <div className="border-deep-teal/10 mt-3 grid gap-3 border-t pt-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-deep-teal font-semibold">
+                        {services.delivery ? "Delivery" : "Self pickup at KJM"}
+                      </p>
+                      {services.delivery && (
+                        <p className="text-muted mt-1">
+                          {services.delivery.address}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-deep-teal font-semibold">
+                        {services.collection
+                          ? "Collection"
+                          : "Self return to KJM"}
+                      </p>
+                      {services.collection && (
+                        <p className="text-muted mt-1">
+                          {services.collection.address}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <dl className="divide-deep-teal/10 border-deep-teal/10 divide-y rounded-2xl border">
-                  {[
-                    ["Motorcycle", motorcycle.model],
-                    [
-                      "Rental duration",
-                      `${days} rental day${days === 1 ? "" : "s"}`,
-                    ],
-                    [
-                      "Rental period",
-                      `${formatBookingDate(form.pickup)} → ${formatBookingDate(form.returnAt)}`,
-                    ],
-                    ["Customer", form.fullName],
-                    [
-                      "Extras",
-                      selectedExtras.length
+                  <details className="mt-3">
+                    <summary className="text-ocean cursor-pointer text-xs font-semibold">
+                      Documents & selected extras
+                    </summary>
+                    <p className="text-muted mt-2 text-xs">
+                      {Object.values(files).filter(Boolean).length} documents
+                      ready for review.{" "}
+                      {selectedExtras.length
                         ? selectedExtras
                             .map(
                               (extra) =>
-                                `${extraQuantities[extra.id]}× ${extra.name} (${formatPhp(extra.price_php)}${extra.pricing_model === "per_day" ? "/day" : ""})`,
+                                `${extraQuantities[extra.id]}× ${extra.name}`,
                             )
                             .join(", ")
-                        : "None",
-                    ],
-                    [
-                      "Rental subtotal",
-                      quote
-                        ? formatCentavos(quote.base_total_centavos)
-                        : "Server quote required",
-                    ],
-                    [
-                      "Extras subtotal",
-                      quote
-                        ? formatCentavos(quote.extras_total_centavos)
-                        : "Server quote required",
-                    ],
-                    [
-                      "Total",
-                      quote
-                        ? `${formatCentavos(quote.total_centavos)} — ${quote.pricing_units} unit(s) at ${formatPhp(quote.daily_rate_php)}/day`
-                        : `${formatPhp(estimate)} estimated; server quote required`,
-                    ],
-                    ["Payment Method", paymentMethod === "online" ? "Pay Online" : "Cash on Pickup"],
-                    [
-                      "Security deposit option",
-                      depositOption === "cash"
-                        ? "Cash Security Deposit"
-                        : `Eligible ID Card Deposit — ${depositDocument}`,
-                    ],
-                    [
-                      "Refundable cash deposit",
-                      quote?.policy_version &&
-                      quote.deposit_required_centavos != null
-                        ? formatCentavos(quote.deposit_required_centavos)
-                        : "Server quote required",
-                    ],
-                    [
-                      "Total cash required at pickup",
-                      quote?.policy_version &&
-                      quote.deposit_required_centavos != null
-                        ? formatCentavos(
-                            pickupCashTotal(
-                              quote.total_centavos,
-                              quote.deposit_required_centavos,
-                            ),
-                          )
-                        : "Server quote required",
-                    ],
-                    [
-                      "Status",
-                      form.customerType === "international_visitor"
-                        ? "Manual booking approval required"
-                        : "Confirms after required documents are uploaded; verification remains pending",
-                    ],
-                  ].map(([k, v]) => (
-                    <div
-                      key={k}
-                      className="flex justify-between gap-5 p-4 text-sm"
-                    >
-                      <dt className="text-deep-teal font-bold">{k}</dt>
-                      <dd className="text-muted text-right">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
+                        : "No extras selected."}
+                    </p>
+                  </details>
+                  {form.customerType === "international_visitor" && (
+                    <p className="text-muted mt-3 text-xs">
+                      Your booking requires owner approval. Payment becomes
+                      available after confirmation.
+                    </p>
+                  )}
+                </section>
+                <div className="checkout-mobile-summary">{checkoutSummary}</div>
                 <TermsAcceptance
                   acceptedVersion={acceptedTermsVersion}
                   onChange={setAcceptedTermsVersion}
@@ -1136,7 +1301,7 @@ export function BookingCheckout({
                 <p className="text-muted mt-4 text-xs leading-5">
                   {settings?.privacy_notice}
                 </p>
-                {requiresGuestAuth && (
+                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
                   <div className="mt-5">
                     <TurnstileChallenge onToken={setCaptchaToken} />
                   </div>
@@ -1158,16 +1323,22 @@ export function BookingCheckout({
                 <p className="text-muted mx-auto mt-4 max-w-lg text-sm leading-7">
                   {reservationStatus === "confirmed"
                     ? "Your motorcycle has been reserved for your selected dates. Your identification documents are pending verification. Document approval is required before motorcycle pickup."
-                    : "Your international booking request is pending KJM approval. Mandatory manual identity and driving-document review is required."}{" "}
+                    : "Your booking request is awaiting KJM approval. Identity and driving-document review continue separately."}{" "}
                   Keep this browser session to view protected status updates.
                 </p>
+                {bookingId && <BookingEmailStatus bookingId={bookingId} />}
+                {bookingId && (
+                  <Link
+                    href={`/guest/booking/${bookingId}`}
+                    className="text-ocean mt-4 inline-block font-bold"
+                  >
+                    View booking updates
+                  </Link>
+                )}
                 <dl className="mt-6 space-y-3 text-sm">
                   {[
                     ["Motorcycle", motorcycle.model],
-                    [
-                      "Rental duration",
-                      `${days} rental day${days === 1 ? "" : "s"}`,
-                    ],
+                    ["Rental duration", durationLabel],
                     [
                       "Rental dates",
                       `${formatBookingDate(form.pickup)} → ${formatBookingDate(form.returnAt)}`,
@@ -1184,7 +1355,7 @@ export function BookingCheckout({
                     [
                       "Rental total",
                       quote
-                        ? formatCentavos(quote.total_centavos)
+                        ? formatCentavos(quotedPayable)
                         : "Server record required",
                     ],
                     [
@@ -1206,7 +1377,12 @@ export function BookingCheckout({
                         : "Pending manual approval",
                     ],
                     ["Document verification", "Pending KJM review"],
-                    ["Payment", paymentMethod === "online" ? "Online · Awaiting verification" : "Cash on Pickup · Unpaid"],
+                    [
+                      "Payment",
+                      paymentMethod === "online"
+                        ? "Online · Awaiting verification"
+                        : "Cash on Pickup · Unpaid",
+                    ],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -1222,7 +1398,7 @@ export function BookingCheckout({
                 </Link>
                 {bookingId && (
                   <Link
-                    href={`/booking/status/${bookingId}`}
+                    href={`/guest/booking/${bookingId}`}
                     className="bg-ocean mt-6 inline-flex rounded-full px-5 py-3 text-sm font-bold text-white"
                   >
                     View secure booking status
@@ -1246,11 +1422,24 @@ export function BookingCheckout({
               </div>
             )}
             {step === 5 && paymentMethod === "online" && (
-              <div className="mt-5 space-y-3 rounded-2xl border border-deep-teal/15 p-4">
-                {paymentMessage && <p role="status" className="text-muted text-sm leading-6">{paymentMessage}</p>}
-                {reservationStatus === "confirmed" && <button type="button" disabled={busy} onClick={() => void payOnline(bookingId)} className="bg-ocean min-h-11 rounded-full px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
-                  {busy ? "Opening secure checkout…" : "Continue to secure checkout"}
-                </button>}
+              <div className="border-deep-teal/15 mt-5 space-y-3 rounded-2xl border p-4">
+                {paymentMessage && (
+                  <p role="status" className="text-muted text-sm leading-6">
+                    {paymentMessage}
+                  </p>
+                )}
+                {reservationStatus === "confirmed" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void payOnline(bookingId)}
+                    className="bg-ocean min-h-11 rounded-full px-6 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    {busy
+                      ? "Opening secure checkout…"
+                      : "Continue to secure checkout"}
+                  </button>
+                )}
               </div>
             )}
             {error && (
@@ -1290,12 +1479,24 @@ export function BookingCheckout({
                   disabled={
                     !configured ||
                     !submissionEnabled ||
+                    !dates ||
+                    !quote?.policy_version ||
+                    !serviceQuote ||
+                    !files.drivers_license_front ||
+                    !(form.customerType === "international_visitor"
+                      ? files.passport
+                      : files.government_id) ||
+                    (paymentMethod === "online" &&
+                      (!onlineEnabled ||
+                        !serviceConfig?.qrph_enabled ||
+                        !serviceConfig?.qrph_ready)) ||
                     busy ||
                     !hasRequiredBookingAcceptance(
                       consented,
                       acceptedTermsVersion,
                     ) ||
-                    (requiresGuestAuth && !captchaToken)
+                    (Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) &&
+                      !captchaToken)
                   }
                   onClick={submit}
                   className="bg-sunset text-deep-teal disabled:bg-sand disabled:text-muted inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-100"
@@ -1305,7 +1506,11 @@ export function BookingCheckout({
                   ) : (
                     <FileCheck2 className="size-4" />
                   )}
-                  {busy ? "Submitting…" : "Confirm Booking"}
+                  {busy
+                    ? "Submitting…"
+                    : paymentMethod === "online"
+                      ? "Continue to Secure Payment"
+                      : "Confirm Booking"}
                 </button>
               ) : (
                 <button
@@ -1329,86 +1534,7 @@ export function BookingCheckout({
             </div>
           )}
         </section>
-        <aside className="minimal-desktop-summary">
-          {motorcycle.primaryImage && (
-            <Image
-              src={motorcycle.primaryImage.src}
-              alt={motorcycle.primaryImage.alt}
-              width={480}
-              height={320}
-              className="h-40 w-full object-cover"
-            />
-          )}
-          <div className="p-5">
-            <p className="bg-sand/60 text-deep-teal mb-5 rounded-xl p-4 text-sm leading-6">
-              <strong className="block">{paymentMethod === "online" ? "Pay Online" : "Cash on Pickup"}</strong>
-              {paymentMethod === "online" ? "Complete your rental payment on secure checkout. Your security deposit is handled at pickup." : "Pay your rental amount in cash when collecting your motorcycle."}
-            </p>
-            <p className="text-ocean text-xs font-extrabold tracking-wider uppercase">
-              Your rental
-            </p>
-            <h2 className="text-deep-teal mt-2 text-xl font-extrabold">
-              {motorcycle.model}
-            </h2>
-            <dl className="mt-5 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted">Rental duration</dt>
-                <dd className="font-bold">
-                  {days
-                    ? `${days} rental day${days === 1 ? "" : "s"}`
-                    : "Choose your dates"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted">Rental</dt>
-                <dd className="text-deep-teal font-bold">
-                  {quote ? formatCentavos(quote.base_total_centavos) : "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted">Extras</dt>
-                <dd className="text-deep-teal font-bold">
-                  {quote ? formatCentavos(quote.extras_total_centavos) : "—"}
-                </dd>
-              </div>
-              <div className="border-deep-teal/10 flex justify-between border-t pt-3">
-                <dt className="text-deep-teal font-bold">Total</dt>
-                <dd className="text-ocean text-lg font-extrabold">
-                  {quote
-                    ? formatCentavos(quote.total_centavos)
-                    : "Server quote required"}
-                </dd>
-              </div>
-              <div className="flex flex-wrap justify-between gap-3">
-                <dt className="text-muted">Refundable cash deposit</dt>
-                <dd className="font-bold">
-                  {quote?.policy_version &&
-                  quote.deposit_required_centavos != null
-                    ? formatCentavos(quote.deposit_required_centavos)
-                    : "Select an approved arrangement"}
-                </dd>
-              </div>
-              <div className="flex flex-wrap justify-between gap-3">
-                <dt className="font-bold">Cash required at pickup</dt>
-                <dd className="font-bold">
-                  {quote?.policy_version &&
-                  quote.deposit_required_centavos != null
-                    ? formatCentavos(
-                        pickupCashTotal(
-                          quote.total_centavos,
-                          quote.deposit_required_centavos,
-                        ),
-                      )
-                    : "Server quote required"}
-                </dd>
-              </div>
-            </dl>
-            <p className="text-muted mt-4 text-xs leading-5">
-              Final pricing and availability are always verified by KJM&apos;s
-              secure booking server.
-            </p>
-          </div>
-        </aside>
+        <aside className="checkout-desktop-summary">{checkoutSummary}</aside>
       </div>
     </div>
   );
@@ -1440,11 +1566,13 @@ function Input({
   value,
   onChange,
   type = "text",
+  error,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  error?: string;
 }) {
   return (
     <Field label={label}>
@@ -1454,7 +1582,36 @@ function Input({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="field"
+        aria-invalid={!!error}
       />
+      {error && (
+        <span role="alert" className="mt-1 block text-xs text-red-700">
+          {error}
+        </span>
+      )}
     </Field>
   );
+}
+
+function friendlyCheckoutError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const safe = [
+    "Please",
+    "Check your service areas",
+    "Service options are temporarily",
+    "Review the delivery",
+    "Choose",
+    "Upload",
+    "Use a supported",
+    "Complete the",
+    "Your document could not",
+    "We couldn’t",
+    "Accept the",
+    "The unfinished request could not",
+  ];
+  return safe.some((prefix) => message.startsWith(prefix)) &&
+    message.length < 300 &&
+    !/[{}\[\]]/.test(message)
+    ? message
+    : "We couldn’t continue. Please check your details and try again, or contact KJM for help.";
 }

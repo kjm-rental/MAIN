@@ -15,20 +15,15 @@ describe("destination guide", () => {
       ),
     ).toBe(true);
   });
-  it("uses six destination-specific local photos with attribution", () => {
+  it("uses six distinct local illustrations with explicit illustration disclosure", () => {
     const photos = destinations.flatMap((d) => (d.image ? [d.image] : []));
     expect(new Set(photos.map((p) => p.src)).size).toBe(6);
     for (const photo of photos) {
       expect(existsSync("public" + photo.src)).toBe(true);
-      expect(photo.file).toMatch(
-        /^https:\/\/commons.wikimedia.org\/wiki\/File:/,
-      );
-      expect(photo.author).toBeTruthy();
-      expect(photo.alt).toBeTruthy();
+      expect(photo.src).toMatch(/-ai\.webp$/);
+      expect(photo.alt).toContain("Illustrative scenery");
+      expect(photo.alt).toContain("not ");
     }
-    expect(destinations.find((d) => d.id === "sirao")?.image.file).toContain(
-      "Original",
-    );
   });
   it("provides HTTPS sources and maps for the exact named locations", () => {
     for (const d of destinations) {

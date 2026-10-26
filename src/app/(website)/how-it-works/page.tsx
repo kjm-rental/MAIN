@@ -76,6 +76,9 @@ export default function HowItWorksPage() {
                 </p>
               </div>
             </div>
+            <figcaption className="text-muted mt-3 text-xs leading-5">
+              Coastal illustration · Inspired by Cordova, not a documentary photograph.
+            </figcaption>
           </figure>
         </Container>
       </section>

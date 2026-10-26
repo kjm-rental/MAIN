@@ -37,6 +37,7 @@ export type DepositEvent = {
   event_type:
     | "cash_collected"
     | "cash_returned"
+    | "cash_deducted"
     | "id_received"
     | "id_returned"
     | "case_opened"

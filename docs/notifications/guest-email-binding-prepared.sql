@@ -1,0 +1,2 @@
+-- Superseded by supabase/migrations/202610260031_notification_guest_binding.sql.
+-- Do not apply this historical draft. Apply the versioned migration after dependency verification.

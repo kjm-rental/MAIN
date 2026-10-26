@@ -236,8 +236,8 @@ export function HomeSections({ catalog }: { catalog: PublicCatalogResult }) {
             </figure>
             <p className="text-muted mt-3 text-xs leading-6">
               Road-connection inspiration, not a riding recommendation. Check
-              current route restrictions and conditions; this historical
-              photograph does not confirm access.
+              current route restrictions and conditions; this illustrative
+              illustration does not confirm access.
             </p>
           </HomeReveal>
           <HomeReveal>

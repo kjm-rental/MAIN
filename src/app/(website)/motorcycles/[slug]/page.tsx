@@ -76,11 +76,45 @@ async function MotorcycleDetail({ params }: Props) {
               <h1 className="text-deep-teal mt-3 text-4xl font-bold tracking-[-0.045em] sm:text-6xl">
                 {motorcycle.model}
               </h1>
-              <p className="text-muted mt-6 text-sm">Starting daily rate</p>
-              <p className="text-ocean mt-1 text-4xl font-extrabold">
-                {formatPhp(motorcycle.dailyRatePhp)}
-                <span className="text-muted text-base font-semibold">/day</span>
-              </p>
+              <dl
+                aria-label="Rental rates"
+                className="mt-6 grid grid-cols-3 gap-3"
+              >
+                {[
+                  {
+                    label: "Daily",
+                    amount: motorcycle.dailyRatePhp,
+                    unit: "day",
+                  },
+                  {
+                    label: "Weekly",
+                    amount: motorcycle.weeklyRatePhp,
+                    unit: "7 days",
+                  },
+                  {
+                    label: "Monthly",
+                    amount: motorcycle.monthlyRatePhp,
+                    unit: "30 days",
+                  },
+                ].map((rate) => (
+                  <div
+                    key={rate.label}
+                    className="border-deep-teal/10 border-l pl-3 first:border-0 first:pl-0"
+                  >
+                    <dt className="text-muted text-sm">{rate.label}</dt>
+                    <dd className="text-ocean mt-1 text-xl font-extrabold sm:text-2xl">
+                      {rate.amount == null ? (
+                        <span className="text-muted text-sm font-semibold">
+                          Ask KJM
+                        </span>
+                      ) : (
+                        formatPhp(rate.amount)
+                      )}
+                    </dd>
+                    <p className="text-muted mt-1 text-xs">{rate.unit}</p>
+                  </div>
+                ))}
+              </dl>
               <p className="text-muted mt-6 max-w-xl leading-7">
                 {motorcycle.description}
               </p>
@@ -140,7 +174,7 @@ async function MotorcycleDetail({ params }: Props) {
             <div className="border-deep-teal/10 rounded-[1.5rem] border bg-white p-6">
               <ul className="space-y-4">
                 {[
-                  "The price shown is KJM's client-supplied starting daily rate.",
+                  "Daily, weekly (7 days), and monthly (30 days) prices use KJM’s currently active saved rates. Final pricing is confirmed for your rental dates.",
                   "This page represents a model, not a particular physical rental unit.",
                   "Availability, included equipment, policies and fees are not yet connected.",
                 ].map((text) => (

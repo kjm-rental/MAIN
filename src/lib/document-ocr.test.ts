@@ -52,3 +52,23 @@ it("actually runs the local English OCR engine on a synthetic image without remo
   expect(result.available).toBe(true);
   expect(result.fields.name).toBe("ALICE SAMPLE");
 }, 12000);
+
+it("keeps raw numbers private and compares normalized high-confidence number tokens", () => {
+  const first = parseDocumentOcr([line("License Number: A12-345-678")]);
+  const second = parseDocumentOcr([line("License No: A12345678")]);
+  expect(first.fields.documentNumberHash).toBe(
+    second.fields.documentNumberHash,
+  );
+  expect(first.fields.documentNumberHash).toMatch(/^[a-f0-9]{64}$/);
+  expect(JSON.stringify(first)).not.toContain("A12-345-678");
+  expect(
+    parseDocumentOcr([line("License Number: A12-345-678", 60)]).fields
+      .documentNumberHash,
+  ).toBeUndefined();
+  expect(
+    parseDocumentOcr([
+      line("License Number: A12-345-678"),
+      line("License Number: B99-888-777"),
+    ]).fields.documentNumberHash,
+  ).toBeUndefined();
+});

@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
 export type OcrFields = {
   name?: string;
   birthdate?: string;
   expiry?: string;
   categories?: string;
+  /** Memory-only comparison token; raw document numbers are never retained. */
+  documentNumberHash?: string;
 };
 export type OcrEvidence = {
   available: boolean;
@@ -15,6 +18,10 @@ export function parseDocumentOcr(
   const values: Record<string, string[]> = {};
   const warnings: string[] = [];
   const patterns: [string, RegExp][] = [
+    [
+      "documentNumber",
+      /^(?:licen[sc]e\s+(?:number|no\.?)|passport\s+(?:number|no\.?)|document\s+(?:number|no\.?))\s*:\s*([A-Z0-9 -]{5,30})$/i,
+    ],
     ["name", /^(?:full\s+name|name)\s*:\s*(.+)$/i],
     ["surname", /^(?:surname|last\s+name)\s*:\s*(.+)$/i],
     ["given", /^(?:given\s+names?|first\s+name)\s*:\s*(.+)$/i],
@@ -108,6 +115,11 @@ export function parseDocumentOcr(
     fields.name = name;
   fields.birthdate = date(unique("birthdate"));
   fields.expiry = date(unique("expiry"));
+  const number = unique("documentNumber");
+  if (number && /[0-9]/.test(number))
+    fields.documentNumberHash = createHash("sha256")
+      .update(number.toUpperCase().replace(/[ -]/g, ""))
+      .digest("hex");
   const categories = unique("categories");
   if (categories && /^[A-D][12]?(?:[ ,/]+[A-D][12]?)*$/i.test(categories))
     fields.categories = categories.toUpperCase();

@@ -1,0 +1,130 @@
+-- Dedicated TEST only. Synthetic rows; all fixtures and generated outbox entries roll back.
+begin;
+set local statement_timeout='30s';
+do $$
+declare owner_id uuid:=gen_random_uuid(); outsider uuid:=gen_random_uuid(); staff uuid:=gen_random_uuid();
+ customer uuid:=gen_random_uuid(); booking uuid:=gen_random_uuid(); verification uuid:=gen_random_uuid(); unit uuid:=gen_random_uuid(); model uuid;
+ current_ids uuid[]; old_check uuid; old_id uuid; new_id uuid; path text; denied boolean; n integer; checks integer:=0; result jsonb; component text;
+begin
+ if not exists(select 1 from public.notification_settings where id and not resend_enabled and not telegram_enabled and not reminders_approved) then raise exception 'TEST delivery must be disabled'; end if;
+ insert into auth.users(id,aud,role,email,encrypted_password,created_at,updated_at,is_anonymous)
+ select id,'authenticated','authenticated',id::text||'@example.invalid','synthetic',now(),now(),false from unnest(array[owner_id,outsider,staff]) id;
+ insert into public.admin_users(auth_user_id,role,is_active) values(staff,'administrator',true);
+ insert into public.customers(id,auth_user_id,full_name,email,customer_type) values(customer,owner_id,'Synthetic Identity Test',owner_id::text||'@example.invalid','philippine_resident');
+ select id into model from public.motorcycle_models where archived_at is null limit 1;
+ insert into public.motorcycle_units(id,motorcycle_model_id,internal_unit_code,status) values(unit,model,'IDENTITY-TEST-'||unit,'available');
+ insert into public.bookings(id,booking_reference,customer_id,motorcycle_model_id,start_at,end_at,status,quoted_total_php,base_total_php,expires_at,is_test,deposit_required_centavos)
+ values(booking,'IDENTITY-TEST-'||booking,customer,model,now()+interval '1 day',now()+interval '2 days','pending',700,700,now()+interval '2 hours',true,250000);
+ insert into public.customer_verifications(id,booking_id,customer_id,customer_type,identity_status,license_status,entitlement_status,international_status,overall_status,identity_name,license_name,license_expiration_date,permitted_vehicle_categories)
+ values(verification,booking,customer,'philippine_resident','submitted','submitted','under_review','not_applicable','under_review','Synthetic Identity Test','Synthetic Identity Test',current_date+365,'A');
+ path:=owner_id||'/'||booking||'/'||gen_random_uuid()||'.png';
+ insert into storage.objects(bucket_id,name,metadata) values('identity-verification',path,'{"mimetype":"image/png","size":1000}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ denied:=false; begin perform public.admin_review_verification(verification,'identity','approved',null); exception when others then denied:=true; end;
+ if not denied then raise exception 'Customer approval bypass'; end if; checks:=checks+1;
+ update public.customer_verifications set overall_status='approved' where id=verification; get diagnostics n=row_count;
+ if n<>0 then raise exception 'Customer direct decision bypass'; end if; checks:=checks+1;
+ denied:=false; begin
+ insert into public.verification_documents(verification_id,booking_id,owner_user_id,document_kind,storage_path,mime_type,size_bytes,status) values(verification,booking,owner_id,'government_id',path,'image/png',1000,'approved');
+ exception when others then denied:=true; end;
+ if not denied then raise exception 'Metadata approval forgery'; end if; checks:=checks+1;
+ insert into public.verification_documents(verification_id,booking_id,owner_user_id,document_kind,storage_path,mime_type,size_bytes) values(verification,booking,owner_id,'government_id',path,'image/png',1000) returning id into old_id;
+ denied:=false; begin perform public.record_verification_prescreen(booking,owner_id,array[old_id],'{"preliminaryStatus":"passed","riskLevel":1,"riskStatus":"DOCUMENT_CHECKS_PASSED","reviewReasons":["Authorized authenticity and license eligibility review still required"],"checks":[],"corrections":[]}'); exception when others then denied:=true; end;
+ if not denied then raise exception 'Customer precheck forgery'; end if; checks:=checks+1;
+ execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',outsider,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ denied:=false; begin perform public.get_verification_progress(booking); exception when others then denied:=true; end;
+ if not denied then raise exception 'Outsider history access'; end if; checks:=checks+1;
+ select count(*) into n from public.verification_documents where booking_id=booking;
+ if n<>0 then raise exception 'Outsider private metadata access'; end if; checks:=checks+1;
+ execute 'reset role';
+ path:=owner_id||'/'||booking||'/'||gen_random_uuid()||'.png';
+ insert into storage.objects(bucket_id,name,metadata) values('identity-verification',path,'{"mimetype":"image/png","size":1000}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ new_id:=public.register_verification_resubmission(booking,'drivers_license_front',path,'image/png',1000); checks:=checks+1;
+ execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+ if not public.record_verification_prescreen(booking,owner_id,array[old_id,new_id],'{"preliminaryStatus":"passed","riskLevel":1,"riskStatus":"DOCUMENT_CHECKS_PASSED","reviewReasons":["Authorized authenticity and license eligibility review still required"],"checkedAt":"2030-01-01T00:00:00Z","checks":[],"corrections":[]}') then raise exception 'Valid redacted history not saved'; end if; checks:=checks+1;
+ if public.record_verification_prescreen(booking,owner_id,array[old_id],'{"preliminaryStatus":"passed","riskLevel":1,"riskStatus":"DOCUMENT_CHECKS_PASSED","reviewReasons":["Authorized authenticity and license eligibility review still required"],"checks":[],"corrections":[]}') then raise exception 'Stale document snapshot accepted'; end if; checks:=checks+1;
+ if (select overall_status from public.customer_verifications where id=verification)='approved' then raise exception 'Precheck approved identity'; end if; checks:=checks+1;
+ if (select document_check_status from public.customer_verifications where id=verification)<>'DOCUMENT_CHECKS_PASSED' then raise exception 'Level 1 not persisted'; end if; checks:=checks+1;
+ if not public.record_verification_prescreen(booking,owner_id,array[old_id,new_id],'{"preliminaryStatus":"correction_required","riskLevel":3,"riskStatus":"CORRECTION_REQUIRED","reviewReasons":["Additional side needed"],"checks":[],"corrections":[{"documentKind":"drivers_license_back","message":"Upload missing license side"}]}') then raise exception 'Pending correction not stored'; end if;
+ if (select status from public.verification_documents where id=old_id)<>'submitted' or (select overall_status from public.customer_verifications where id=verification)<>'under_review' then raise exception 'Automatic correction changed confirmation prerequisites'; end if; checks:=checks+1;
+
+ if exists(select 1 from public.notification_outbox where booking_id=booking and event_type='verification_approved') then raise exception 'Precheck produced full approval mail'; end if; checks:=checks+1;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',staff,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.admin_review_verification(verification,'identity','resubmission_required','Please upload a clearer ID.'); checks:=checks+1;
+ execute 'reset role';
+ path:=owner_id||'/'||booking||'/'||gen_random_uuid()||'.png';
+ insert into storage.objects(bucket_id,name,metadata) values('identity-verification',path,'{"mimetype":"image/png","size":1000}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.register_verification_resubmission(booking,'government_id',path,'image/png',1000);
+ result:=public.get_verification_progress(booking);
+ if (result->'checks'->0->>'current')::boolean then raise exception 'Superseded precheck stayed current'; end if; checks:=checks+1;
+ execute 'reset role';
+ if not exists(select 1 from public.verification_documents where id=old_id and replaced_at is not null) then raise exception 'Replacement history lost'; end if; checks:=checks+1;
+ insert into public.booking_confirmation_records(booking_id,motorcycle_unit_id,auth_user_id) values(booking,unit,owner_id);
+ update public.bookings set motorcycle_unit_id=unit,status='confirmed',expires_at=null where id=booking;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
+ select array_agg(id order by id) into current_ids from public.verification_documents where verification_id=verification and replaced_at is null;
+ if not public.record_verification_prescreen(booking,owner_id,current_ids,'{"preliminaryStatus":"manual_review_required","riskLevel":2,"riskStatus":"MANUAL_REVIEW_REQUIRED","reviewReasons":["Birthdates conflict across documents"],"checks":[],"corrections":[]}') then raise exception 'Level 2 not recorded'; end if;
+ if (select document_check_status from public.customer_verifications where id=verification)<>'MANUAL_REVIEW_REQUIRED' or (select status from public.bookings where id=booking)<>'confirmed' then raise exception 'Manual review altered confirmation'; end if; checks:=checks+1;
+ if not public.record_verification_prescreen(booking,owner_id,current_ids,'{"preliminaryStatus":"correction_required","riskLevel":3,"riskStatus":"CORRECTION_REQUIRED","reviewReasons":["License back required to read categories"],"checks":[],"corrections":[{"documentKind":"drivers_license_back","message":"Upload the side showing license categories"}]}') then raise exception 'Level 3 not recorded'; end if;
+ if (select status from public.bookings where id=booking)<>'confirmed' then raise exception 'Correction altered confirmation'; end if; checks:=checks+1;
+ select document_check_id into old_check from public.customer_verifications where id=verification;
+ path:=owner_id||'/'||booking||'/'||gen_random_uuid()||'.png';
+ insert into storage.objects(bucket_id,name,metadata) values('identity-verification',path,'{"mimetype":"image/png","size":1000}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.register_verification_resubmission(booking,'drivers_license_back',path,'image/png',1000);
+ update public.customer_verifications set document_check_status='DOCUMENT_CHECKS_PASSED',document_risk_level=1 where id=verification;get diagnostics n=row_count;
+ if n<>0 then raise exception 'Customer forged risk status'; end if;checks:=checks+1;
+ execute 'reset role';
+ if (select document_check_status from public.customer_verifications where id=verification)<>'PENDING' or (select status from public.bookings where id=booking)<>'confirmed' then raise exception 'Reupload did not clear stale risk or changed booking'; end if;checks:=checks+1;
+ if exists(select 1 from public.notification_outbox outbox where outbox.booking_id=booking and outbox.payload->>'documentCheckId'=old_check::text and private.kjm_notification_eligible(outbox)) then raise exception 'Stale correction notification eligible'; end if;checks:=checks+1;
+
+ denied:=false; begin update public.bookings set status='active' where id=booking; exception when others then denied:=true; end;
+ if not denied then raise exception 'Unverified handover bypass'; end if; checks:=checks+1;
+ update public.customer_verifications set license_expiration_date=current_date-1 where id=verification;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',staff,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ denied:=false; begin
+ foreach component in array array['identity','license','entitlement'] loop perform public.admin_review_verification(verification,component,'approved','Synthetic review with expired license'); end loop;
+ exception when others then denied:=true; end;
+ if not denied then raise exception 'Expired identity verification approved'; end if; checks:=checks+1;
+ execute 'reset role';
+ update public.customer_verifications set license_expiration_date=current_date+365 where id=verification;
+ execute 'set local role authenticated';
+ foreach component in array array['identity','license','entitlement'] loop perform public.admin_review_verification(verification,component,'approved','Synthetic authorized authenticity, ownership and motorcycle eligibility review'); end loop;
+ execute 'reset role';
+ if (select overall_status from public.customer_verifications where id=verification)<>'approved' then raise exception 'Authorized review did not approve'; end if; checks:=checks+1;
+ denied:=false; begin update public.bookings set status='active' where id=booking; exception when others then denied:=true; end;
+ if not denied then raise exception 'Unpaid/uninspected handover bypass'; end if; checks:=checks+1;
+ insert into public.booking_deposits(booking_id,option,required_centavos,partial_return_allowed,collection_instructions,return_instructions,dispute_instructions,policy_version,request_fingerprint,is_test)
+ values(booking,'cash',250000,false,'Synthetic collection','Synthetic return','Synthetic dispute',now(),'synthetic',true);
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',staff,'role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.admin_record_offline_payment(booking,70000,'cash','Synthetic receipt',now(),'Synthetic cash explicitly recorded',gen_random_uuid());
+ perform public.admin_record_security_deposit_event(booking,'cash_collected',250000,now(),'Synthetic deposit explicitly recorded',gen_random_uuid(),true);
+ execute 'reset role';
+ update public.motorcycle_units set status='maintenance' where id=unit;
+ execute 'set local role authenticated';
+ denied:=false; begin
+ perform public.admin_record_rental_inspection(booking,'handover',jsonb_build_object('occurred_at',now(),'odometer_km',10,'fuel_percent',100,'condition_notes','Synthetic good condition','accessories_notes','Synthetic checked','identity_checked',true,'accessories_checked',true),gen_random_uuid());
+ exception when others then denied:=true; end;
+ if not denied then raise exception 'Unready motorcycle handover bypass'; end if; checks:=checks+1;
+ execute 'reset role';
+ update public.motorcycle_units set status='available' where id=unit;
+ execute 'set local role authenticated';
+ perform public.admin_record_rental_inspection(booking,'handover',jsonb_build_object('occurred_at',now(),'odometer_km',10,'fuel_percent',100,'condition_notes','Synthetic good condition','accessories_notes','Synthetic checked','identity_checked',true,'accessories_checked',true),gen_random_uuid());
+ execute 'reset role';
+ if (select status from public.bookings where id=booking)<>'active' then raise exception 'Fully satisfied handover failed'; end if; checks:=checks+1;
+ perform set_config('kjm.identity_test_result',jsonb_build_object('passed',checks,'fixtures','synthetic','rolledBack',true)::text,true);
+end $$;
+select current_setting('kjm.identity_test_result')::jsonb as security_results;
+rollback;

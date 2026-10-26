@@ -1,0 +1,15 @@
+# Automatic email delivery status — 2026-10-26
+
+MAIN project: `slevojynuumrvgiznmxk`. Both normal apps continue to use MAIN. No database SQL was applied or provider email sent during this session.
+
+Local work: temporary checkout test branch and activation command retired; normal ownership/Auth verification retained. Migration 031 holds unverified mailboxes without consuming retries, rejects synthetic inventory notifications, preserves migration 030 eligibility, introduces factual customer document receipts and admin-recorded pickup instructions, and exposes a service-only runtime readiness check. Existing branded layouts now show the stored deposit arrangement. MAIN refuses delivery until readiness confirms the database protection and activation boundary.
+
+`docs/notifications/activate-main-delivery.sql` enables only the requested event categories and reminders after 031. A delivery-start boundary preserves old rows/history while holding historical backlog. Do not rerun earlier migrations or reset sent/failed rows. Migration 031 is prepared but database execution/SQL integration validation is blocked.
+
+A local macOS LaunchAgent `com.kjm.notification-dispatcher` is installed for the current user, every 60 seconds and at login. It invokes `scripts/notification-scheduler.cjs`, with secrets read privately from MAIN `.env.local`. Log: `/tmp/kjm-notification-scheduler.log`. It currently reports delivery disabled. It depends on this Mac/user session and MAIN running at localhost:3000; it is not a hosted always-on scheduler.
+
+Exact blocker: no Supabase management access token or SQL connection credentials are configured. macOS Keychain credential lookup timed out, and Computer Use permissions were denied. Existing service-role REST credentials work, but cannot execute arbitrary schema migrations. Read-only readiness RPC returned 404 (031 readiness function absent). General Resend and reminder flags remain false to avoid unsafe activation.
+
+After MAIN database administrative access is available: compare installed functions/dependencies (022,027,029,030), validate/apply only 031, apply the activation settings transaction, confirm runtime status, then set MAIN `.env.local` `RESEND_ENABLED=true`, `NOTIFICATION_REMINDERS_ENABLED=true`, `NOTIFICATIONS_MODE=live`, `NOTIFICATIONS_EXTERNAL_APPROVED=true`. No test arming. Keep online payments disabled. The local schedule already reloads `.env.local` on each invocation. ADMIN writes events to the same database; MAIN owns delivery, so ADMIN requires no copied API key. Configure a genuine `KJM_REVIEW_URL` for the external review destination; without it the existing thank-you email links to the secure booking instead.
+
+Guest mailbox verification remains required. A confirmed booking is independent of identity review; an unverified guest must verify the same Auth identity's email through the booking success/status panel. Address entry alone never authorizes delivery. SMTP/email-upgrade and callback redirect behavior still need an authorized end-to-end check after database activation. A local historical test-attempt ledger, if any, must remain available for duplicate reconciliation.

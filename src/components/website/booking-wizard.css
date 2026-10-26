@@ -826,3 +826,11 @@
     min-height: calc(100dvh - 60px);
   }
 }
+
+/* Compact checkout summary: shared content, positioned before confirmation on mobile. */
+.checkout-desktop-summary { position: sticky; top: 24px; align-self: start; min-width: 0; }
+.checkout-mobile-summary { display: none; margin: 20px 0; }
+@media (max-width: 900px) {
+  .checkout-desktop-summary { display: none; }
+  .checkout-mobile-summary { display: block; }
+}

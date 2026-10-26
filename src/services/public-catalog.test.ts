@@ -107,3 +107,85 @@ describe("getPublicMotorcycleCatalog", () => {
     expect(result.notice).toContain("could not load");
   });
 });
+
+it("shows current saved weekly and monthly rates without deriving or inventing package prices", async () => {
+  const result = await getPublicMotorcycleCatalog({
+    isConfigured: true,
+    fetchRows: vi.fn().mockResolvedValue([
+      {
+        id: "model-1",
+        slug: "suzuki-v-strom-160",
+        is_published: true,
+        archived_at: null,
+        display_name: "Suzuki V-Strom 160",
+        daily_rate_php: 850,
+      },
+    ]),
+    fetchRateRows: vi.fn().mockResolvedValue([
+      {
+        motorcycle_model_id: "model-1",
+        pricing_type: "weekly",
+        amount_php: 5000,
+        is_active: true,
+        valid_from: null,
+        valid_until: null,
+      },
+      {
+        motorcycle_model_id: "model-1",
+        pricing_type: "monthly",
+        amount_php: 18000,
+        is_active: true,
+        valid_from: null,
+        valid_until: null,
+      },
+      {
+        motorcycle_model_id: "model-1",
+        pricing_type: "weekly",
+        amount_php: 1,
+        is_active: false,
+        valid_from: null,
+        valid_until: null,
+      },
+      {
+        motorcycle_model_id: "model-1",
+        pricing_type: "monthly",
+        amount_php: 2,
+        is_active: true,
+        valid_from: null,
+        valid_until: "2020-01-01T00:00:00Z",
+      },
+    ]),
+  });
+  expect(result.motorcycles[0]).toMatchObject({
+    dailyRatePhp: 850,
+    weeklyRatePhp: 5000,
+    monthlyRatePhp: 18000,
+  });
+});
+
+it("keeps motorcycles visible when optional public package rates cannot load", async () => {
+  const result = await getPublicMotorcycleCatalog({
+    isConfigured: true,
+    fetchRows: vi
+      .fn()
+      .mockResolvedValue([
+        {
+          id: "model",
+          slug: "suzuki-v-strom-160",
+          display_name: "Suzuki V-Strom 160",
+          daily_rate_php: 850,
+          is_published: true,
+          archived_at: null,
+        },
+      ]),
+    fetchRateRows: vi
+      .fn()
+      .mockRejectedValue(
+        new Error("permission denied for table pricing_rules"),
+      ),
+  });
+  expect(result.source).toBe("supabase");
+  expect(result.motorcycles).toHaveLength(1);
+  expect(result.motorcycles[0].dailyRatePhp).toBe(850);
+  expect(result.motorcycles[0].weeklyRatePhp).toBeUndefined();
+});

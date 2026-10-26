@@ -30,3 +30,23 @@ describe("booking dates", () => {
       estimatedStartedDays("2026-10-10T01:00:00Z", "2026-10-11T02:00:00Z"),
     ).toBe(2));
 });
+
+it("keeps the 24-hour minimum while allowing extension times", () => {
+  const now = new Date("2029-01-01T00:00:00Z");
+  expect(() =>
+    validateRentalPeriod("2030-01-01T09:00", "2030-01-02T08:59", now),
+  ).toThrow("24 hours");
+  for (const end of [
+    "2030-01-02T09:00",
+    "2030-01-03T09:00",
+    "2030-01-03T10:00",
+    "2030-01-03T14:00",
+    "2030-01-03T10:01",
+    "2030-01-08T09:00",
+    "2030-01-31T09:00",
+  ]) {
+    expect(() =>
+      validateRentalPeriod("2030-01-01T09:00", end, now),
+    ).not.toThrow();
+  }
+});

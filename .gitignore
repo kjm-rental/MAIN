@@ -157,3 +157,12 @@ next-env.d.ts
 /docs/paymongo-live-verification/*snapshot.sql
 /docs/paymongo-live-verification/production-apply.sql
 /docs/paymongo-stage3/*.json
+
+# Local one-email smoke-test attempt record (no credentials).
+.resend-smoke-test/
+
+# Private environment backup before isolated identity testing
+.identity-test-backup/
+
+# Durable one-booking controlled email guard
+.resend-booking-test/

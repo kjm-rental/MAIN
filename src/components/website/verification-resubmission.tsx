@@ -6,10 +6,14 @@ export function VerificationResubmission({
   bookingId,
   documents,
   instructions,
+  title = "Document corrections requested",
+  onSubmitted,
 }: {
   bookingId: string;
   documents: { document_kind: string }[];
   instructions: string | null;
+  title?: string;
+  onSubmitted?: () => void;
 }) {
   const router = useRouter(),
     [busy, setBusy] = useState(false),
@@ -43,7 +47,10 @@ export function VerificationResubmission({
       const saved = await client.storage
         .from("identity-verification")
         .upload(path, file, { contentType: file.type });
-      if (saved.error) throw new Error(saved.error.message);
+      if (saved.error)
+        throw new Error(
+          "The private upload could not be saved. Confirm the file format and that this booking still accepts corrections.",
+        );
       const registered = await client.rpc(
         "register_verification_resubmission",
         {
@@ -54,14 +61,18 @@ export function VerificationResubmission({
           p_size_bytes: file.size,
         },
       );
-      if (registered.error) throw new Error(registered.error.message);
-      void fetch(`/api/verification/${bookingId}/prescreen`, {
+      if (registered.error)
+        throw new Error(
+          "This document could not be registered for correction. Your existing verification decision has not been changed. Refresh the page or ask KJM to review the correction request.",
+        );
+      await fetch(`/api/verification/${bookingId}/prescreen`, {
         method: "POST",
         keepalive: true,
       }).catch(() => undefined);
       setMessage(
         "Corrected document received. Manual verification is still required.",
       );
+      onSubmitted?.();
       router.refresh();
     } catch (e) {
       setMessage(
@@ -75,7 +86,7 @@ export function VerificationResubmission({
   }
   return (
     <section className="border-deep-teal/15 mt-6 rounded-2xl border p-5">
-      <h2 className="text-xl font-bold">Document corrections requested</h2>
+      <h2 className="text-xl font-bold">{title}</h2>
       <p className="text-muted mt-3 text-sm">
         {instructions ?? "Replace the documents requested by KJM."}
       </p>

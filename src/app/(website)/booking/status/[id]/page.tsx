@@ -1,3 +1,8 @@
+import { rentalDuration } from "@/lib/rental-duration";
+import { rentalPricingRows } from "@/lib/rental-pricing";
+import { BookingEmailStatus } from "@/components/website/booking-email-status";
+import { parseVerificationProgress } from "@/lib/verification-progress";
+import { VerificationChecks } from "@/components/website/verification-checks";
 import { VerificationResubmission } from "@/components/website/verification-resubmission";
 import { isMissingDepositSchema } from "@/lib/security-deposits";
 import { notFound } from "next/navigation";
@@ -20,9 +25,7 @@ export default async function BookingStatusPage({
   if (authError || !user) notFound();
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
-    .select(
-      "id,booking_reference,motorcycle_model_id,start_at,end_at,status,status_reason,expires_at,quoted_total_php,pricing_daily_rate_php,pricing_units,base_total_php,extras_total_php,total_centavos",
-    )
+    .select("*")
     .eq("id", id)
     .maybeSingle();
   if (bookingError) throw new Error("Booking status could not be loaded.");
@@ -90,6 +93,12 @@ export default async function BookingStatusPage({
           p_booking_id: id,
         })
       : null;
+  const progressResult = verification
+    ? await supabase.rpc("get_verification_progress", { p_booking_id: id })
+    : null;
+  const progress = progressResult?.error
+    ? null
+    : parseVerificationProgress(progressResult?.data);
   const pending = ["pending", "submitted"].includes(booking.status);
   const rows = [
     ["Motorcycle", model?.display_name ?? "—"],
@@ -120,6 +129,12 @@ export default async function BookingStatusPage({
       extras?.map((e) => `${e.name_snapshot} × ${e.quantity}`).join(", ") ||
         "None",
     ],
+    [
+      "Rental duration",
+      rentalDuration(booking.start_at, booking.end_at)?.label ??
+        "See rental dates",
+    ],
+    ...rentalPricingRows(booking.rental_pricing),
     ["Motorcycle rental subtotal", money(booking.base_total_php * 100)],
     ["Optional extras subtotal", money(booking.extras_total_php * 100)],
     ["Rental total", money(booking.total_centavos)],
@@ -157,7 +172,7 @@ export default async function BookingStatusPage({
     ["Verification", verification?.overall_status ?? "not submitted"],
     [
       "Price",
-      `₱${booking.quoted_total_php.toLocaleString("en-PH")} (${booking.pricing_units ?? "—"} unit(s) at ₱${booking.pricing_daily_rate_php?.toLocaleString("en-PH") ?? "—"})`,
+      `₱${booking.quoted_total_php.toLocaleString("en-PH")} — saved booking amount`,
     ],
     ...(booking.expires_at
       ? [["Request expires", formatManila(booking.expires_at)]]
@@ -192,6 +207,15 @@ export default async function BookingStatusPage({
               </div>
             ))}
           </dl>
+          <BookingEmailStatus bookingId={id} />
+          {verification && (
+            <VerificationChecks
+              key={progress?.checks[0]?.id ?? "pending"}
+              bookingId={id}
+              allowChecks={["pending", "confirmed"].includes(booking.status)}
+              initialProgress={progress}
+            />
+          )}
           {verification?.overall_status === "resubmission_required" &&
             ["pending", "confirmed"].includes(booking.status) && (
               <VerificationResubmission

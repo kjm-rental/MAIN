@@ -53,8 +53,8 @@ export default function AboutPage() {
         <figure className="kjm-about-hero-figure">
           <div className="kjm-about-hero-image">
             <Image
-              src="/images/island/about-mactan-coast.webp"
-              alt="Palm-lined beach and calm water at Bluewater on Mactan Island"
+              src="/images/island/tropical-beach-ai.webp"
+              alt="Illustrative scenery of a Philippine tropical beach, not a specific resort"
               fill
               preload
               sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1200px) 48vw, 540px"
@@ -62,15 +62,7 @@ export default function AboutPage() {
             <span className="kjm-about-photo-tag">MACTAN ISLAND / CEBU</span>
           </div>
           <figcaption className="kjm-about-credit">
-            Bluewater beach, Mactan · Øyvind Holmstad ·{" "}
-            <a href="https://commons.wikimedia.org/wiki/File:Blue_waters_beach_philippines_mactan.jpg">
-              Source
-            </a>{" "}
-            ·{" "}
-            <a href="https://creativecommons.org/licenses/by-sa/4.0/">
-              CC BY-SA 4.0
-            </a>
-            . Resized, WebP &amp; cropped.
+            Tropical beach illustration · Not a specific resort.
           </figcaption>
         </figure>
       </section>
@@ -124,23 +116,15 @@ export default function AboutPage() {
           <figure>
             <div className="kjm-about-island-image">
               <Image
-                src="/images/island/cordova-sunset.webp"
-                alt="Sunset reflected on the sea among fishing boats in Cordova, Cebu"
+                src="/images/island/coastal-sunset-ai.webp"
+                alt="Illustrative scenery of a Cordova-inspired coastal sunset"
                 fill
                 sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1200px) 50vw, 580px"
               />
             </div>
             <figcaption className="kjm-about-credit">
-              Cordova sunset · Carl Griño ·{" "}
-              <a href="https://commons.wikimedia.org/wiki/File:Sunset_in_Cordova_(Cebu_Province,_Philippines).jpg">
-                Source
-              </a>{" "}
-              ·{" "}
-              <a href="https://creativecommons.org/licenses/by-sa/4.0/">
-                CC BY-SA 4.0
-              </a>
-              . Resized, WebP &amp; cropped.
-            </figcaption>
+            Coastal sunset illustration · Inspired by Cordova.
+          </figcaption>
           </figure>
           <div className="kjm-about-island-copy">
             <p className="kjm-about-eyebrow">BEYOND THE EVERYDAY</p>
@@ -254,8 +238,8 @@ export default function AboutPage() {
         </AboutReveal>
       </section>
       <p className="kjm-about-photo-note kjm-about-container">
-        Photography is destination inspiration: historical views, not KJM
-        premises or a promise of beach access.
+        Scenery is illustrated travel inspiration, not documentary photography
+        of specific places, KJM premises or a promise of beach access.
       </p>
     </main>
   );

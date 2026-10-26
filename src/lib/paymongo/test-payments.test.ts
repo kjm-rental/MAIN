@@ -125,9 +125,21 @@ describe("test payment safeguards", () => {
     const fetcher = vi.fn().mockResolvedValue(response(refunded)); vi.stubGlobal("fetch", fetcher);
     await expect(reconcile(d.client, checkout)).rejects.toThrow("review");
     const failed = session(true); failed.attributes.payments[0].attributes.status = "failed";
-    fetcher.mockResolvedValue(response(failed)); expect((await reconcile(d.client, checkout)).status).toBe("pending");
+    fetcher.mockResolvedValue(response(failed)); expect((await reconcile(d.client, checkout)).status).toBe("failed_unpaid");
     const expired = session(); expired.attributes.status = "expired";
     fetcher.mockResolvedValue(response(expired)); expect((await reconcile(d.client, checkout)).status).toBe("expired_unpaid");
     expect(d.call).not.toHaveBeenCalled();
   });
+});
+
+it("recognizes an existing live key in the original variable without mixing test credentials",async()=>{
+ const {paymongoSecret}=await import("./test-payments");
+ vi.stubEnv("PAYMONGO_LIVE_SECRET_KEY","");
+ // An explicitly configured invalid dedicated key remains a configuration error.
+ expect(paymongoSecret(true)).toBe("");
+ vi.unstubAllEnvs();
+ vi.stubEnv("PAYMONGO_SECRET_KEY","sk_live_existing_placeholder");
+ expect(paymongoSecret(true)).toBe("sk_live_existing_placeholder");
+ vi.stubEnv("PAYMONGO_SECRET_KEY","sk_test_placeholder");
+ expect(paymongoSecret(true)).toBeUndefined();
 });

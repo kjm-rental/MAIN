@@ -5,7 +5,7 @@ import {
 import { notFound } from "next/navigation";
 import { BookingCheckout } from "@/components/website/booking-checkout";
 import { Container } from "@/components/ui/container";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicCatalogClient } from "@/lib/supabase/public-catalog";
 import { getPublicMotorcycleCatalog } from "@/services/public-catalog";
 import testPublicExtraIds from "@/lib/constants/test-public-extras.json";
 
@@ -15,10 +15,9 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
     ? catalog.motorcycles.find((m) => m.slug === selectedSlug)
     : catalog.motorcycles.find((m) => m.id);
   if (!motorcycle || !motorcycle.id) notFound();
-  const supabase = await createClient();
+  const supabase = createPublicCatalogClient();
   const [
     { data: settings, error: settingsError },
-    { data: testingAllowed },
     { data: extras, error: extrasError },
     depositResult,
   ] = await Promise.all([
@@ -28,7 +27,6 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
         "timezone,operating_hours,partial_day_policy,partial_day_pricing_policy,pending_expiration_minutes,accepted_philippine_id_types,philippine_license_policy,international_license_policy,international_manual_review_required,international_policy_source_url,international_policy_verified_at,privacy_notice,public_booking_enabled,policies_approved_at",
       )
       .maybeSingle(),
-    supabase.rpc("can_use_booking_testing"),
     supabase
       .from("booking_extras_catalog")
       .select(
@@ -49,8 +47,8 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
   const configured = Boolean(
     !settingsError &&
     Boolean(depositOptions?.cash_enabled || depositOptions?.id_enabled) &&
-    ((settings?.public_booking_enabled && settings.policies_approved_at) ||
-      testingAllowed) &&
+    settings?.public_booking_enabled &&
+    settings.policies_approved_at &&
     settings?.operating_hours &&
     settings.partial_day_policy &&
     settings.partial_day_pricing_policy &&
@@ -74,10 +72,19 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
           motorcycles={catalog.motorcycles}
           settings={settingsError ? null : settings}
           configured={configured}
-          submissionEnabled={configured && process.env.KJM_LOCAL_BOOKING_DISABLED !== "true"}
+          submissionEnabled={
+            configured && process.env.KJM_LOCAL_BOOKING_DISABLED !== "true"
+          }
           paymentTestMode={process.env.KJM_PAYMONGO_TEST === "true"}
-          extras={extrasError ? [] : (extras ?? []).filter(extra =>
-            process.env.KJM_PAYMONGO_TEST !== "true" || (testPublicExtraIds as string[]).includes(extra.id))}
+          extras={
+            extrasError
+              ? []
+              : (extras ?? []).filter(
+                  (extra) =>
+                    process.env.KJM_PAYMONGO_TEST !== "true" ||
+                    (testPublicExtraIds as string[]).includes(extra.id),
+                )
+          }
         />
       </Container>
     </main>
