@@ -1,3 +1,4 @@
+import { paymongoLiveMode } from "@/lib/paymongo/mode";
 import { customerOnlinePaymentsEnabled } from "@/lib/payment-availability";
 import {
   guestRequestSchema,
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       );
     if (
       parsed.data.p_payment_method === "qrph" &&
-      (!customerOnlinePaymentsEnabled || process.env.PAYMONGO_MODE !== "live")
+      (!customerOnlinePaymentsEnabled || !paymongoLiveMode())
     )
       return guestResponse(
         { error: "QRPh is not available yet. Please select cash." },

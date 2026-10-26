@@ -1,3 +1,4 @@
+import { paymongoLiveMode } from "@/lib/paymongo/mode";
 import { z } from "zod";
 import {
   ownedGuestBooking,
@@ -21,7 +22,7 @@ export async function POST(
   try {
     if (!sameOrigin(request))
       throw new PaymentError(403, "Please use the KJM website.");
-    if (!customerOnlinePaymentsEnabled || process.env.PAYMONGO_MODE !== "live")
+    if (!customerOnlinePaymentsEnabled || !paymongoLiveMode())
       throw new PaymentError(
         503,
         "QRPh is unavailable until live verification is complete. No payment was requested.",
@@ -46,8 +47,7 @@ export async function GET(
     const id = z.uuid().parse((await params).bookingId);
     const access = await ownedGuestBooking(id);
     if (!access) throw new PaymentError(404, "Booking unavailable.");
-    if (process.env.PAYMONGO_MODE !== "live")
-      return guestResponse({ status: "unavailable" });
+    if (!paymongoLiveMode()) return guestResponse({ status: "unavailable" });
     const { data, error } = await access.db.rpc("get_guest_payment_checkout", {
       p_booking_id: id,
       p_access_hash: access.hash,

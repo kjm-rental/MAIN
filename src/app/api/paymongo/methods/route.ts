@@ -1,3 +1,4 @@
+import { paymongoLiveMode } from "@/lib/paymongo/mode";
 import { customerOnlinePaymentsEnabled } from "@/lib/payment-availability";
 import {
   accountMethods,
@@ -8,7 +9,7 @@ export async function GET() {
   if (!customerOnlinePaymentsEnabled)
     return respond({ methods: [], onlineEnabled: false });
   try {
-    if (process.env.PAYMONGO_MODE !== "live")
+    if (!paymongoLiveMode())
       return respond({ methods: [], onlineEnabled: false });
     const { guestDb } = await import("@/lib/guest-checkout/server");
     const { data: options, error } = await guestDb().rpc(

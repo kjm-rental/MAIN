@@ -1,3 +1,4 @@
+import { paymongoLiveMode } from "./mode";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -12,7 +13,7 @@ export function paymongoSecret(live:boolean) {
   return live ? process.env.PAYMONGO_LIVE_SECRET_KEY ?? (legacy?.startsWith("sk_live_") ? legacy : undefined) : legacy;
 }
 export function configuration(creation = false) {
-  const live = process.env.PAYMONGO_MODE === "live";
+  const live = paymongoLiveMode();
   const secret = paymongoSecret(live);
   const webhook = live ? process.env.PAYMONGO_LIVE_WEBHOOK_SECRET : process.env.PAYMONGO_WEBHOOK_SECRET;
   const cron = live ? process.env.PAYMONGO_LIVE_RECONCILIATION_SECRET : process.env.PAYMONGO_RECONCILIATION_SECRET;
@@ -58,7 +59,7 @@ export async function availableMethods() {
 }
 // Read-only TEST-account capability preview. No database or booking access.
 export async function accountMethods() {
-  const live = process.env.PAYMONGO_MODE === "live";
+  const live = paymongoLiveMode();
   const secret = paymongoSecret(live);
   if (!secret?.startsWith(live ? "sk_live_" : "sk_test_")) throw new PaymentError(503, "Online payments unavailable");
   const response = await fetch("https://api.paymongo.com/v1/merchants/capabilities/payment_methods", {

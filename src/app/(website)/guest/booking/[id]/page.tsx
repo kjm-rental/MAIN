@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { GuestBookingStatus } from "@/components/website/guest-booking-status";
+// Booking-specific URL data and the shared navigation render at request time.
+export const instant = false;
+
 export default async function GuestStatusPage({
   params,
 }: {
