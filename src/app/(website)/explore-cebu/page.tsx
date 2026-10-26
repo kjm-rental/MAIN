@@ -57,9 +57,6 @@ function DestinationCard({
             </span>
           </div>
         )}
-        <figcaption className="absolute inset-x-0 bottom-0 bg-black/65 px-4 py-2 text-xs leading-5 text-white">
-          Illustrative scenery · Not the actual venue
-        </figcaption>
         <span className="bg-off-white border-deep-teal/15 absolute top-4 left-4 rounded-full border px-3 py-1.5 text-xs font-bold tracking-wider shadow-sm">
           {d.category}
         </span>

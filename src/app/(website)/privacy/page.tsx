@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/page-hero";
 import { Container } from "@/components/ui/container";
+import { businessContact } from "@/lib/content/business-contact";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -127,7 +128,7 @@ const sections = [
     title: "Policy updates and privacy contact",
     paragraphs: [
       "Updates will appear on this page with a revision date. Material changes to purposes or processing should be brought to affected customers’ attention, with fresh consent where required. Review version: October 13, 2026. The effective date will be set after owner approval.",
-      "Personal information controller: KJM Motorcycle Rental, Lapu-Lapu City, Cebu, Philippines. Owner confirmation required: supply the privacy contact or designated privacy officer, monitored email address, approved phone number, and business mailing address before launch. The current Contact page also awaits verified details and is not yet a working privacy request channel.",
+      `Personal information controller: ${businessContact.name}. Registered business address: ${businessContact.address}. For privacy inquiries, contact ${businessContact.email} or ${businessContact.phone}.`,
     ],
   },
 ] as const;

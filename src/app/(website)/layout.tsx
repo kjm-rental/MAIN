@@ -1,5 +1,6 @@
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { FloatingWhatsAppButton } from "@/components/website/whatsapp-button";
 
 export default function WebsiteLayout({
   children,
@@ -9,6 +10,7 @@ export default function WebsiteLayout({
       <SiteHeader />
       {children}
       <SiteFooter />
+      <FloatingWhatsAppButton />
     </>
   );
 }

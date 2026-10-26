@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { FloatingWhatsAppButton } from "@/components/website/whatsapp-button";
 export default function BookingLayout({
   children,
 }: {
@@ -23,6 +24,7 @@ export default function BookingLayout({
         <Link href="/motorcycles">Our motorcycles</Link>
       </header>
       {children}
+      <FloatingWhatsAppButton />
     </div>
   );
 }

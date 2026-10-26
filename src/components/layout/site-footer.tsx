@@ -5,6 +5,7 @@ import { ArrowUpRight, Waves } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CurrentYear } from "@/components/ui/current-year";
 import { FooterEntrance } from "@/components/layout/footer-entrance";
+import { businessContact } from "@/lib/content/business-contact";
 
 const footerLinks = [
   { href: "/motorcycles", label: "Motorcycles" },
@@ -83,6 +84,28 @@ export function SiteFooter() {
           <p className="footer-secondary mt-3 max-w-xs text-sm leading-6">
             Find your ride. Take the island at your own pace.
           </p>
+          <address className="footer-secondary mt-4 text-sm leading-6 [overflow-wrap:anywhere] not-italic">
+            <p className="font-bold">Registered business address</p>
+            <p>{businessContact.address}</p>
+            <a
+              href={businessContact.telephoneUrl}
+              className="footer-link mt-2 flex min-h-11 items-center"
+            >
+              {businessContact.phone}
+            </a>
+            <a
+              href={`mailto:${businessContact.email}`}
+              className="footer-link flex min-h-11 items-center"
+            >
+              {businessContact.email}
+            </a>
+            <a
+              href={businessContact.website}
+              className="footer-link flex min-h-11 items-center"
+            >
+              kjmride.com
+            </a>
+          </address>
         </FooterEntrance>
         <FooterEntrance delay={70}>
           <h2 className="text-[11px] font-bold tracking-[.15em] uppercase">
