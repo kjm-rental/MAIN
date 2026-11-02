@@ -12,7 +12,7 @@ export default async function GuestStatusPage({
   const parsed = z.uuid().safeParse((await params).id);
   if (!parsed.success) notFound();
   return (
-    <main className="bg-sand px-5">
+    <main className="min-h-[70vh] bg-[#f3f5ee] px-5">
       <GuestBookingStatus id={parsed.data} />
     </main>
   );
