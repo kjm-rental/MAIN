@@ -1,0 +1,26 @@
+name: PayMongo live reconciliation
+
+on:
+  schedule:
+    - cron: '3-58/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paymongo-live-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Recover missed payment notifications
+        env:
+          PAYMONGO_LIVE_RECONCILIATION_SECRET: ${{ secrets.PAYMONGO_LIVE_RECONCILIATION_SECRET }}
+        run: node scripts/paymongo-live-reconcile.cjs
