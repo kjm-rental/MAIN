@@ -1,11 +1,5 @@
-"use client";
-
-import { useState, type FormEvent } from "react";
-import { ArrowRight, CalendarDays, Search } from "lucide-react";
+import { ArrowRight, Compass } from "lucide-react";
 import Link from "next/link";
-import { RentalDateTimePicker } from "@/components/ui/rental-date-time-picker";
-import { createClient } from "@/lib/supabase/client";
-import { validateRentalPeriod } from "@/lib/booking";
 import type { MotorcycleModel } from "@/types/motorcycle";
 
 export function BookingPreview({
@@ -13,130 +7,40 @@ export function BookingPreview({
 }: {
   motorcycles: readonly MotorcycleModel[];
 }) {
-  const [message, setMessage] = useState("");
-  const [pickup, setPickup] = useState("");
-  const [busy, setBusy] = useState(false),
-    [available, setAvailable] = useState<string[]>([]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
-    setBusy(true);
-    setAvailable([]);
-    try {
-      const period = validateRentalPeriod(
-        String(values.get("pickup")),
-        String(values.get("returnAt")),
-      );
-      const results = await Promise.all(
-        motorcycles
-          .filter((m) => m.id)
-          .map(async (m) => {
-            const result = await createClient().rpc(
-              "check_model_availability",
-              {
-                p_model_id: m.id!,
-                p_start_at: period.startAt,
-                p_end_at: period.endAt,
-              },
-            );
-            if (result.error) throw new Error(result.error.message);
-            return (result.data ?? 0) > 0 ? m.slug : null;
-          }),
-      );
-      const found = results.filter((s): s is string => Boolean(s));
-      setAvailable(found);
-      setMessage(
-        found.length
-          ? `${found.length} models available. Availability is checked again during submission.`
-          : "No models available for these dates. Try another rental period.",
-      );
-    } catch (e) {
-      setMessage(
-        e instanceof Error ? e.message : "Availability could not be checked.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <div
+    <section
       id="plan-your-ride"
-      className="border-deep-teal/10 bg-off-white text-deep-teal relative scroll-mt-24 rounded-[1.75rem] border p-5 shadow-[0_24px_70px_rgba(18,59,66,0.18)] sm:p-7"
+      aria-label="Explore our bikes"
+      className="border-deep-teal/10 bg-off-white text-deep-teal relative scroll-mt-24 overflow-hidden rounded-[1.75rem] border p-6 shadow-[0_24px_70px_rgba(18,59,66,0.18)] sm:p-8"
     >
-      <div className="flex items-center gap-3">
-        <span className="bg-sand text-ocean inline-flex size-10 items-center justify-center rounded-full">
-          <CalendarDays aria-hidden="true" className="size-5" />
+      <div className="flex items-center justify-between gap-4">
+        <span className="bg-sand text-ocean inline-flex size-12 items-center justify-center rounded-2xl">
+          <Compass aria-hidden="true" className="size-6" />
         </span>
-        <div>
-          <p className="text-deep-teal font-bold">Plan your ride</p>
-          <p className="text-muted text-xs">Your island time · Asia/Manila</p>
-        </div>
+        <span className="text-muted text-[10px] font-bold tracking-[0.16em] uppercase">
+          {motorcycles.length
+            ? `${motorcycles.length} bikes to explore`
+            : "Find your island ride"}
+        </span>
       </div>
-      <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-        <RentalDateTimePicker
-          label="Pickup date & time"
-          kind="pickup"
-          value={pickup}
-          onChange={setPickup}
-          name="pickup"
-          required
-        />
-        <RentalDateTimePicker
-          label="Return date & time"
-          kind="return"
-          after={pickup || undefined}
-          name="returnAt"
-          required
-        />
-        <button
-          type="submit"
-          disabled={busy || !motorcycles.length}
-          className="bg-sunset text-deep-teal hover:bg-sand inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-extrabold transition-colors"
-        >
-          <Search aria-hidden="true" className="size-4" />
-          {busy ? (
-            "Checking availability…"
-          ) : (
-            <>
-              <span className="kjm-booking-label-desktop">Find your ride</span>
-              <span className="kjm-booking-label-mobile">
-                Find Your Motorcycle{" "}
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </span>
-            </>
-          )}
-        </button>
-      </form>
-      {available.length > 0 && (
-        <ul className="mt-4 space-y-2">
-          {motorcycles
-            .filter((m) => available.includes(m.slug))
-            .map((m) => (
-              <li key={m.slug}>
-                <Link
-                  className="text-ocean text-sm font-bold underline"
-                  href={`/book/${m.slug}`}
-                >
-                  {m.model} →
-                </Link>
-              </li>
-            ))}
-        </ul>
-      )}
-      <p className="text-muted mt-4 text-[11px] leading-5">
-        Online requests are restricted during launch preparations. Requests
-        require document review and KJM approval.
+      <h2 className="mt-6 text-3xl leading-tight font-extrabold tracking-tight sm:text-[2.25rem]">
+        Explore our bikes.
+        <span className="text-ocean block">Find your freedom.</span>
+      </h2>
+      <p className="text-muted mt-4 text-sm leading-7">
+        Easy city rides or a little island adventure. Browse our motorcycles,
+        compare rental rates, and find the ride that feels like you.
       </p>
-      {message ? (
-        <p
-          role="status"
-          className="bg-ocean/10 text-deep-teal mt-4 rounded-xl p-3 text-xs leading-5"
-        >
-          {message}
-        </p>
-      ) : null}
-    </div>
+      <Link
+        href="/motorcycles"
+        className="bg-sunset text-deep-teal hover:bg-sand mt-7 flex min-h-14 items-center justify-between gap-4 rounded-full px-6 text-sm font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
+      >
+        Explore our bikes
+        <ArrowRight aria-hidden="true" className="size-5" />
+      </Link>
+      <p className="text-muted mt-4 text-center text-xs leading-5">
+        Pick your bike first. Plan your dates next.
+      </p>
+    </section>
   );
 }
