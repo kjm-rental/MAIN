@@ -17,6 +17,22 @@ export async function POST(request: Request) {
     const parsed = eventSchema.safeParse(JSON.parse(raw.toString("utf8")));
     if (!parsed.success || parsed.data.data.attributes.livemode !== config.live) throw new PaymentError(400, "Invalid payment event");
     const event = parsed.data.data;
+    if (event.attributes.type === "payment.paid" && config.live) {
+      const payment = z.object({ id: z.string().regex(/^pay_[A-Za-z0-9]+$/), type: z.literal("payment"),
+        attributes: z.object({ livemode: z.literal(true), payment_intent_id: z.string().regex(/^pi_[A-Za-z0-9]+$/) }),
+      }).safeParse(event.attributes.data);
+      if (!payment.success) throw new PaymentError(400, "Invalid payment event");
+      const db = databaseClient();
+      const checkoutId = await rpc<string | null>(db, "find_paymongo_inline_checkout", { p_intent_id: payment.data.attributes.payment_intent_id });
+      if (!checkoutId) return respond({ ignored: true });
+      const args = { p_event_id: event.id, p_hash: payloadHash(raw) };
+      if (await rpc<boolean>(db, "paymongo_live_event_completed", args)) return respond({ duplicate: true });
+      const c = await loadCheckout(db, checkoutId);
+      const result = await reconcile(db, c, undefined, payment.data.id);
+      if (result.status !== "paid" && result.status !== "review_required") throw new PaymentError(503, "Payment not yet reconciled; retry");
+      await rpc(db, "paymongo_live_event_completed", { ...args, p_complete: true });
+      return respond({ ok: true });
+    }
     if (event.attributes.type !== "checkout_session.payment.paid") return respond({ ignored: true });
     const verification = z.object({
       id: z.string().regex(/^cs_[A-Za-z0-9]+$/), type: z.literal("checkout_session"),

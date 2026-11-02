@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
 vi.mock("@/lib/payment-availability", () => ({
   customerOnlinePaymentsEnabled: true,
 }));
+vi.mock("@/lib/paymongo/inline-qrph", () => ({ createInlineGuestPayment: m.create, inlinePaymentState: vi.fn() }));
 vi.mock("@/lib/guest-checkout/server", () => ({
   ownedGuestBooking: m.owned,
   sameOrigin: (r: Request) =>
@@ -42,8 +43,6 @@ it("uses guest cookie and stable booking key with no browser amount/status or ac
   expect(r.status).toBe(200);
   expect(m.create).toHaveBeenCalledWith(
     { synthetic: true },
-    id,
-    null,
     id,
     "booking-cookie-hash",
   );

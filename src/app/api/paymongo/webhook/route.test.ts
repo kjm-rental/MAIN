@@ -70,3 +70,33 @@ it("verifies a signed LIVE PHP10 probe without crediting a booking or changing r
   expect(mocks.loadCheckout).not.toHaveBeenCalled();
   expect(mocks.reconcile).not.toHaveBeenCalled();
 });
+function inlinePaidRequest() {
+  vi.stubEnv("PAYMONGO_MODE", "live");
+  vi.stubEnv("PAYMONGO_LIVE_SECRET_KEY", "sk_live_placeholder");
+  vi.stubEnv("PAYMONGO_LIVE_WEBHOOK_SECRET", secret);
+  vi.stubEnv("PAYMONGO_LIVE_RECONCILIATION_SECRET", "x".repeat(32));
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", `test.${Buffer.from(JSON.stringify({ ref: "slevojynuumrvgiznmxk", role: "service_role" })).toString("base64url")}.signature`);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://slevojynuumrvgiznmxk.supabase.co");
+  const raw = JSON.stringify({ data: { id: "evt_inline123", type: "event", attributes: { livemode: true, type: "payment.paid", data: { id: "pay_inline123", type: "payment", attributes: { livemode: true, payment_intent_id: "pi_inline123" } } } } });
+  const t = Math.floor(Date.now() / 1000);
+  const digest = createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex");
+  return new Request("https://kjm.example/api/paymongo/webhook", { method: "POST", body: raw, headers: { "paymongo-signature": `t=${t},li=${digest}` } });
+}
+it("reconciles a signed inline payment against its saved intent and canonical provider payment", async () => {
+  mocks.rpc.mockImplementation(async (_db, name) => name === "find_paymongo_inline_checkout" ? id : false);
+  expect((await POST(inlinePaidRequest())).status).toBe(200);
+  expect(mocks.reconcile).toHaveBeenCalledWith({}, { id }, undefined, "pay_inline123");
+  expect(mocks.rpc).toHaveBeenLastCalledWith({}, "paymongo_live_event_completed", expect.objectContaining({ p_complete: true }));
+});
+it("ignores unrelated provider intents and does not credit any booking", async () => {
+  mocks.rpc.mockResolvedValue(null);
+  const result = await POST(inlinePaidRequest());
+  expect(await result.json()).toEqual({ ignored: true });
+  expect(mocks.reconcile).not.toHaveBeenCalled();
+});
+it("retries an inline event until canonical payment settlement completes", async () => {
+  mocks.rpc.mockImplementation(async (_db, name) => name === "find_paymongo_inline_checkout" ? id : false);
+  mocks.reconcile.mockResolvedValue({ status: "pending" });
+  expect((await POST(inlinePaidRequest())).status).toBe(503);
+  expect(mocks.rpc.mock.calls.some(call => call[2]?.p_complete)).toBe(false);
+});

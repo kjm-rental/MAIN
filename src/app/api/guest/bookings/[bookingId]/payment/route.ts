@@ -6,12 +6,11 @@ import {
   sameOrigin,
 } from "@/lib/guest-checkout/server";
 import { customerOnlinePaymentsEnabled } from "@/lib/payment-availability";
+import { createInlineGuestPayment, inlinePaymentState } from "@/lib/paymongo/inline-qrph";
 import {
   configuration,
-  createCheckout,
   databaseClient,
   loadCheckout,
-  reconcile,
   failure,
   PaymentError,
 } from "@/lib/paymongo/test-payments";
@@ -33,7 +32,7 @@ export async function POST(
     if (!access) throw new PaymentError(404, "Booking unavailable.");
     // One durable key per booking, including reloads/retries. Browser amounts are ignored.
     return guestResponse(
-      await createCheckout(databaseClient(), id, null, id, access.hash),
+      await createInlineGuestPayment(databaseClient(), id, access.hash),
     );
   } catch (error) {
     return failure(error);
@@ -56,7 +55,7 @@ export async function GET(
       throw new PaymentError(503, "Payment status is temporarily unavailable.");
     if (!data) return guestResponse({ status: "not_started" });
     const c = await loadCheckout(databaseClient(), data);
-    return guestResponse(await reconcile(databaseClient(), c));
+    return guestResponse(await inlinePaymentState(databaseClient(), c));
   } catch (error) {
     return failure(error);
   }

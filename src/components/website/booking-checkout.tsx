@@ -49,6 +49,7 @@ import type { Json } from "@/types/database";
 import type { MotorcycleModel } from "@/types/motorcycle";
 import { customerOnlinePaymentsEnabled } from "@/lib/payment-availability";
 import { PaymentMethodChoice } from "./payment-method-choice";
+import { InlineQrPayment, type InlinePaymentResult } from "./inline-qr-payment";
 
 type Settings = {
   timezone: string;
@@ -236,6 +237,7 @@ export function BookingCheckout({
   const [onlineMethods, setOnlineMethods] = useState<("card" | "qrph")[]>([]);
   const [onlineEnabled, setOnlineEnabled] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
+  const [inlinePayment, setInlinePayment] = useState<InlinePaymentResult | null>(null);
   const onlinePaymentKey = useRef(crypto.randomUUID());
   useEffect(() => {
     if (!customerOnlinePaymentsEnabled) return;
@@ -278,23 +280,11 @@ export function BookingCheckout({
         throw new Error(
           "Online checkout is unavailable. Your reservation is saved; please try again later.",
         );
-      if (typeof result.checkoutUrl === "string") {
-        const destination = new URL(result.checkoutUrl);
-        if (
-          destination.protocol !== "https:" ||
-          destination.hostname !== "checkout.paymongo.com" ||
-          destination.port ||
-          destination.username ||
-          destination.password
-        )
-          throw new Error("Secure checkout is unavailable.");
-        window.location.assign(destination.href);
-      } else
-        setPaymentMessage(
-          result.status === "paid"
-            ? "Payment verified. View your booking for details."
-            : "Your payment is awaiting verification. Please check your booking status.",
-        );
+      setInlinePayment(result);
+      if (result.status === "paid") {
+        setReservationStatus(result.bookingStatus ?? "pending");
+        setStep(5);
+      }
     } catch (e) {
       setPaymentMessage(
         e instanceof Error ? e.message : "Online checkout is unavailable.",
@@ -686,15 +676,9 @@ export function BookingCheckout({
             }
           : current,
       );
-      setStep(5);
       if (paymentMethod === "online") {
-        if (finalRecord.booking_status === "confirmed")
-          await payOnline(booking.booking_id);
-        else
-          setPaymentMessage(
-            "Your booking requires approval before online payment is available.",
-          );
-      }
+        await payOnline(booking.booking_id);
+      } else setStep(5);
     } catch (e) {
       setError(friendlyCheckoutError(e));
     } finally {
@@ -1207,7 +1191,7 @@ export function BookingCheckout({
                 />
               </div>
             )}
-            {step === 4 && (
+            {step === 4 && !(bookingId && paymentMethod === "online") && (
               <div>
                 <Heading
                   title="Review & Confirm"
@@ -1308,6 +1292,20 @@ export function BookingCheckout({
                 )}
               </div>
             )}
+            {step === 4 && bookingId && paymentMethod === "online" && (
+              <div className="py-5">
+                <h2 className="text-deep-teal text-2xl font-bold">Complete your payment</h2>
+                <p className="text-muted mt-2 text-sm">Reference {reference}. Your slot is reserved while payment is pending.</p>
+                <PaymentMethodChoice value="online" methods={onlineMethods} onlineEnabled={onlineEnabled} cashEnabled={serviceConfig?.cash_enabled !== false} disabled onChange={setPaymentMethod} />
+                <InlineQrPayment bookingId={bookingId} initial={inlinePayment} onPaid={(result) => {
+                  setInlinePayment(result);
+                  setReservationStatus(result.bookingStatus ?? "pending");
+                  setStep(5);
+                }} />
+                {paymentMessage && <p role="status" className="mt-3 text-sm">{paymentMessage}</p>}
+                {!inlinePayment?.qrImage && <button type="button" disabled={busy} onClick={() => void payOnline(bookingId)} className="bg-ocean mt-4 rounded-full px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{busy ? "Preparing payment…" : "Show payment QR"}</button>}
+              </div>
+            )}
             {step === 5 && (
               <div className="py-8 text-center">
                 <FileCheck2 className="text-ocean mx-auto size-12" />
@@ -1380,7 +1378,7 @@ export function BookingCheckout({
                     [
                       "Payment",
                       paymentMethod === "online"
-                        ? "Online · Awaiting verification"
+                        ? inlinePayment?.status === "paid" ? "QRPh · Paid and verified" : "QRPh · Awaiting payment"
                         : "Cash on Pickup · Unpaid",
                     ],
                   ].map(([label, value]) => (
@@ -1421,7 +1419,7 @@ export function BookingCheckout({
                 )}
               </div>
             )}
-            {step === 5 && paymentMethod === "online" && (
+            {step === 5 && paymentMethod === "online" && inlinePayment?.status !== "paid" && (
               <div className="border-deep-teal/15 mt-5 space-y-3 rounded-2xl border p-4">
                 {paymentMessage && (
                   <p role="status" className="text-muted text-sm leading-6">
@@ -1461,7 +1459,7 @@ export function BookingCheckout({
               </button>
             )}
           </div>
-          {step < 5 && (
+          {step < 5 && !(bookingId && paymentMethod === "online") && (
             <div className="minimal-booking-actions">
               <button
                 disabled={step === 0 || busy}

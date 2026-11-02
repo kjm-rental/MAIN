@@ -71,7 +71,7 @@ async function main() {
       insert into public.booking_terms_acceptances(booking_id,auth_user_id,terms_version,source_sha256) select ${quote(id)},${owner},version,source_sha256 from public.rental_terms_versions where is_current;
       insert into public.booking_confirmation_records(booking_id,motorcycle_unit_id,auth_user_id) values(${quote(id)},${quote(fixture.unit_id)},${owner});
       ${guest ? `insert into public.guest_booking_contacts(booking_id,access_hash,email,request_fingerprint) values(${quote(id)},${quote(access)},${quote(`payment-${id}@example.invalid`)},'management-staging-payment-verification');insert into public.booking_services(booking_id,delivery_fee_centavos,collection_fee_centavos,payment_method) values(${quote(id)},${services*100},0,'qrph');` : ""}
-      ${confirmed ? `update public.bookings set status='confirmed',motorcycle_unit_id=${quote(fixture.unit_id)},expires_at=null where id=${quote(id)};` : ""}
+      ${guest ? `insert into public.customer_verifications(booking_id,customer_id,customer_type,overall_status,license_expiration_date) values(${quote(id)},${quote(customer)},'philippine_resident','submitted','2035-01-01');update public.bookings set payment_before_confirmation=true,motorcycle_unit_id=${quote(fixture.unit_id)} where id=${quote(id)};` : confirmed ? `update public.bookings set status='confirmed',motorcycle_unit_id=${quote(fixture.unit_id)},expires_at=null where id=${quote(id)};` : ""}
       select id,round(quoted_total_php*100)::integer amount,deposit_required_centavos deposit from public.bookings where id=${quote(id)};commit;`;
     report.bookings.push(id);
     const [made] = await query(sql);
@@ -98,6 +98,8 @@ async function main() {
   await denied("Different second payment cannot double-credit", `select public.settle_paymongo_live_checkout(${quote(session)},'pay_stagingOther',${registered.amount},'PHP',true)`);
   await denied("Payment locks booked dates", `update public.bookings set end_at=end_at+interval '1 day' where id=${quote(registered.id)}`);
   const guest = await make(12,{guest:true,services:100});
+  await denied("Unpaid QRPh booking cannot be confirmed", `update public.bookings set status='confirmed',expires_at=null where id=${quote(guest.id)}`);
+  ok("QRPh request stays pending before settlement", (await query(`select status from public.bookings where id=${quote(guest.id)};`))[0].status==='pending');
   const [g] = await query(`select set_config('request.jwt.claim.role','service_role',true);select (public.prepare_paymongo_guest_checkout(${quote(guest.id)},${quote(guest.access)},${quote(uid())})).id id;`);
   ok("Guest rental includes services and excludes cash deposit", !!g.id && guest.amount===fixture.daily_rate_php*100+10000 && guest.deposit===250000);
   const gs = 'cs_staging'+uid().replaceAll('-','');
@@ -105,6 +107,7 @@ async function main() {
   await query(`select public.claim_paymongo_live_creation(${quote(g.id)});select public.attach_paymongo_live_session(${quote(g.id)},${quote(gs)});`);
   const [recovered] = await query(`select public.settle_paymongo_live_checkout(${quote(gs)},${quote(gp)},${guest.amount},'PHP',true) as status;`);
   ok("Guest settlement supports null authenticated actor", recovered.status==='paid');
+  ok("Verified payment confirms the reserved domestic QRPh booking", (await query(`select status from public.bookings where id=${quote(guest.id)};`))[0].status==='confirmed');
   const [gl] = await query(`select count(*) events,sum(amount_centavos) paid,bool_and(recorded_by is null) guest_actor from public.payment_events where payment_intent_id=${quote(g.id)};`);
   ok("Guest ledger credits saved rental plus services exactly once", gl.events===1 && Number(gl.paid)===guest.amount && gl.guest_actor);
   const [again] = await query(`select public.settle_paymongo_live_checkout(${quote(gs)},${quote(gp)},${guest.amount},'PHP',true) as status;`);

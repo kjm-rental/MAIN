@@ -81,6 +81,9 @@ export const checkoutSchema = z.object({
   id: z.uuid(), booking_id: z.uuid(), customer_user_id: z.uuid().nullable(),
   amount_centavos: z.number().int().positive().safe(), currency: z.literal("PHP"), is_test: z.boolean(),
   checkout_session_id: z.string().regex(/^cs_[A-Za-z0-9]+$/).nullable(),
+  provider_intent_id: z.string().regex(/^pi_[A-Za-z0-9]+$/).nullable().optional(),
+  qr_creation_claimed_at: z.string().nullable().optional(),
+  booking_status: z.string().optional(),
   checkout_deadline: z.iso.datetime({ offset: true }), creation_claimed_at: z.string().nullable(),
   status: z.enum(["prepared", "session_created", "paid", "review_required"]),
   reservation_active: z.boolean().optional(),
@@ -95,11 +98,27 @@ export const sessionSchema = z.object({
   id: z.string().regex(/^cs_[A-Za-z0-9]+$/), type: z.literal("checkout_session"),
   attributes: z.object({ livemode: z.boolean(), reference_number: z.uuid(),
     checkout_url: z.string().optional(), status: z.string(),
+    payment_intent: z.object({ id: z.string().regex(/^pi_[A-Za-z0-9]+$/) }).nullable().optional(),
     line_items: z.array(z.object({ amount: z.number().int().positive().safe(), currency: z.literal("PHP"), quantity: z.number().int().positive().safe() })),
     payments: z.array(paymentSchema),
   }),
 });
 export type Session = z.infer<typeof sessionSchema>;
+export const intentSchema = z.object({
+  id: z.string().regex(/^pi_[A-Za-z0-9]+$/), type: z.literal("payment_intent"),
+  attributes: z.object({ amount: z.number().int().positive().safe(), currency: z.literal("PHP"),
+    livemode: z.boolean(), status: z.string(), client_key: z.string().optional(),
+    payments: z.array(paymentSchema),
+    next_action: z.object({ type: z.string(), code: z.object({ image_url: z.string() }).passthrough().optional() }).passthrough().nullable().optional(),
+  }),
+});
+export function validateIntent(raw: unknown, c: Checkout) {
+  const intent = intentSchema.parse(raw);
+  if (intent.id !== c.provider_intent_id || intent.attributes.amount !== c.amount_centavos ||
+      intent.attributes.livemode !== configuration().live || intent.attributes.payments.some(p => p.attributes.livemode !== configuration().live))
+    throw new PaymentError(409, "Payment intent does not match the saved booking");
+  return intent;
+}
 export function validateSession(raw: unknown, c: Checkout): Session {
   const session = sessionSchema.parse(raw);
   const live = configuration().live;
@@ -108,6 +127,8 @@ export function validateSession(raw: unknown, c: Checkout): Session {
   if (!Number.isSafeInteger(total) || total !== c.amount_centavos || session.attributes.reference_number !== c.id ||
       (c.checkout_session_id && c.checkout_session_id !== session.id))
     throw new PaymentError(409, "Session does not match locked test booking");
+  if (c.provider_intent_id && session.attributes.payment_intent?.id !== c.provider_intent_id)
+    throw new PaymentError(409, "Payment intent identity changed; owner review required");
   return session;
 }
 export function checkoutURL(session: Session) {
@@ -117,9 +138,14 @@ export function checkoutURL(session: Session) {
   return url.href;
 }
 export async function provider(path: string, body?: unknown): Promise<unknown> {
+  return providerResource("checkout_sessions", path, body);
+}
+export async function providerResource(resource: "checkout_sessions" | "payment_intents" | "payment_methods", path: string, body?: unknown): Promise<unknown> {
   const c = configuration();
   // Fixed provider host; never follow redirects with Authorization credentials.
-  const response = await fetch(`https://api.paymongo.com/v1/checkout_sessions${path}`, {
+  if (!/^(?:\/(?:cs|pi|pm)_[A-Za-z0-9]+(?:\/(?:expire|attach))?)?$/.test(path))
+    throw new PaymentError(400, "Invalid provider resource");
+  const response = await fetch(`https://api.paymongo.com/v1/${resource}${path}`, {
     method: body === undefined ? "GET" : "POST", redirect: "error", cache: "no-store",
     signal: AbortSignal.timeout(15000),
     headers: { Authorization: `Basic ${Buffer.from(`${c.secret}:`).toString("base64")}`, "Content-Type": "application/json" },
@@ -144,13 +170,19 @@ async function noteProviderStatus(db:PaymentDB,id:string,status:string) {
   } catch { /* An unavailable status cache cannot undo a verified financial receipt. */ }
 }
 // Both webhook and cron use this authoritative retrieval, never return-URL data.
-export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: string) {
+export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: string, expectedPaymentId?: string) {
   if (recoveredSession && c.checkout_session_id && recoveredSession !== c.checkout_session_id)
     throw new PaymentError(409, "Session identity mismatch");
   const sessionID = c.checkout_session_id ?? recoveredSession;
   if (!sessionID) return { status: "creation_unresolved", checkoutId: c.id };
   if (!/^cs_[A-Za-z0-9]+$/.test(sessionID)) throw new PaymentError(400, "Invalid session");
-  let session = validateSession(await provider(`/${sessionID}`), c);
+  async function retrieve() {
+    const saved = validateSession(await provider(`/${sessionID}`), c);
+    if (!c.provider_intent_id) return saved;
+    const intent = validateIntent(await providerResource("payment_intents", `/${c.provider_intent_id}`), c);
+    return { ...saved, attributes: { ...saved.attributes, payments: intent.attributes.payments } };
+  }
+  let session = await retrieve();
   if (!c.checkout_session_id) {
     if (!c.creation_claimed_at) throw new PaymentError(409, "Session creation was never claimed");
     await rpc(db, paymentRPC("attach_paymongo_test_session"), { p_checkout_id: c.id, p_session_id: session.id });
@@ -159,13 +191,13 @@ export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: s
   if (!paid.length && (Date.now() >= Date.parse(c.checkout_deadline) || c.reservation_active !== true) && session.attributes.status !== "expired") {
     // Expiration races with payment: retrieve again, never treat expiration as proof of nonpayment.
     await provider(`/${session.id}/expire`, {});
-    session = validateSession(await provider(`/${session.id}`), c);
+    session = await retrieve();
     paid = session.attributes.payments.filter(p => p.attributes.status === "paid");
   }
   if (paid.length > 1) throw new PaymentError(409, "Multiple payments require test payment review");
   if (paid.length === 1) {
     const payment = paid[0];
-    if (payment.attributes.amount !== c.amount_centavos || payment.attributes.disputed || payment.attributes.refunds?.length)
+    if ((expectedPaymentId && payment.id !== expectedPaymentId) || payment.attributes.amount !== c.amount_centavos || payment.attributes.disputed || payment.attributes.refunds?.length)
       throw new PaymentError(409, "Payment requires test payment review");
     const status = await rpc<string>(db, paymentRPC("settle_paymongo_test_checkout"), {
       p_session_id: session.id, p_payment_id: payment.id, p_amount_centavos: payment.attributes.amount,

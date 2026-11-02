@@ -2,7 +2,9 @@
 import { paymentStatusLabel } from "@/lib/paymongo/status-label";
 import { useEffect, useState } from "react";
 import { BookingDocumentUpload } from "./booking-document-upload";
+import { InlineQrPayment, type InlinePaymentResult } from "./inline-qr-payment";
 export function GuestBookingStatus({ id }: { id: string }) {
+  const [inlinePayment, setInlinePayment] = useState<InlinePaymentResult | null>(null);
   const [booking, setBooking] = useState<{
       booking_reference: string;
       status: string;
@@ -37,10 +39,11 @@ export function GuestBookingStatus({ id }: { id: string }) {
               );
               const result = await statusResponse.json();
               if (active && statusResponse.ok) {
+                setInlinePayment(result);
                 setMessage(paymentStatusLabel(result.status));
                 setBooking((current) =>
                   current
-                    ? { ...current, paymentStatus: result.status }
+                    ? { ...current, status: result.bookingStatus ?? current.status, paymentStatus: result.status }
                     : current,
                 );
               }
@@ -74,14 +77,11 @@ export function GuestBookingStatus({ id }: { id: string }) {
       });
       const result = await response.json();
       if (!response.ok) throw Error(result.error);
-      if (result.checkoutUrl) {
-        window.location.assign(result.checkoutUrl);
-        return;
-      }
+      setInlinePayment(result);
       setMessage(paymentStatusLabel(result.status));
       if (result.status === "paid")
         setBooking((current) =>
-          current ? { ...current, paymentStatus: "paid" } : current,
+          current ? { ...current, status: result.bookingStatus ?? current.status, paymentStatus: "paid" } : current,
         );
     } catch (error) {
       setMessage(
@@ -126,7 +126,7 @@ export function GuestBookingStatus({ id }: { id: string }) {
       {booking && (
         <>
           <p className="font-bold">{booking.booking_reference}</p>
-          <p className="capitalize">{booking.status.replaceAll("_", " ")}</p>
+          <p className="capitalize">{booking.services?.payment_method === "qrph" && booking.paymentStatus !== "paid" && ["pending", "confirmed"].includes(booking.status) ? "Awaiting payment" : booking.status.replaceAll("_", " ")}</p>
           <p>
             Saved rental total: ₱
             {(booking.total_centavos / 100).toLocaleString("en-PH", {
@@ -157,11 +157,11 @@ export function GuestBookingStatus({ id }: { id: string }) {
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      disabled={busy || booking.status !== "confirmed"}
+                      disabled={busy || !["pending", "submitted", "confirmed"].includes(booking.status)}
                       onClick={() => void payment(true)}
                       className="rounded-lg border px-3 py-2"
                     >
-                      Pay rental & services with QRPh
+                      Show payment QR
                     </button>
                     <button
                       type="button"
@@ -173,6 +173,13 @@ export function GuestBookingStatus({ id }: { id: string }) {
                     </button>
                   </div>
                 )}
+              {booking.services.payment_method === "qrph" && booking.paymentStatus !== "paid" && inlinePayment && (
+                <InlineQrPayment bookingId={id} initial={inlinePayment} onPaid={(result) => {
+                  setInlinePayment(result);
+                  setMessage("Payment verified.");
+                  setBooking(current => current ? { ...current, paymentStatus: "paid", status: result.bookingStatus ?? current.status } : current);
+                }} />
+              )}
               <p>
                 Refundable security deposit is collected separately in cash at
                 handover.

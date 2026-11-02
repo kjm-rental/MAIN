@@ -143,3 +143,15 @@ it("recognizes an existing live key in the original variable without mixing test
  vi.stubEnv("PAYMONGO_SECRET_KEY","sk_test_placeholder");
  expect(paymongoSecret(true)).toBeUndefined();
 });
+it("reconciles the bound inline intent even while checkout session payments lag", async () => {
+  const saved = { ...checkout, provider_intent_id: "pi_inline123" };
+  const s = { ...session(), attributes: { ...session().attributes, payment_intent: { id: saved.provider_intent_id } } };
+  const intent = { id: saved.provider_intent_id, type: "payment_intent", attributes: { amount: saved.amount_centavos, currency: "PHP", livemode: false, status: "succeeded", payments: session(true).attributes.payments } };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => response(url.includes("payment_intents") ? intent : s)));
+  const d = db(name => name === "settle_paymongo_test_checkout" ? "paid" : null);
+  expect((await reconcile(d.client, saved, undefined, "pay_test123")).status).toBe("paid");
+  expect(d.call).toHaveBeenCalledWith("settle_paymongo_test_checkout", expect.objectContaining({ p_payment_id: "pay_test123", p_amount_centavos: 10000 }));
+  d.call.mockClear();
+  await expect(reconcile(d.client, saved, undefined, "pay_other123")).rejects.toThrow("review");
+  expect(d.call).not.toHaveBeenCalled();
+});
