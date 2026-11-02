@@ -1,13 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Public deployments must not inherit local testing or payment activation flags.
+  // Disable test tooling in production. Live activation uses the server environment
+  // and the independent database readiness checks.
   ...(process.env.NODE_ENV === "production"
     ? {
         env: {
           KJM_PAYMONGO_TEST: "false",
           PAYMONGO_TEST_ENABLED: "false",
-          PAYMONGO_LIVE_ENABLED: "false",
         },
       }
     : {}),
