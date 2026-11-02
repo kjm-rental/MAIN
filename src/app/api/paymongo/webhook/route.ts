@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { verificationReference, verifyLivePayment } from "@/lib/paymongo/live-verification";
 import { configuration, databaseClient, failure, loadCheckout, payloadHash, PaymentError, readBody, reconcile, respond, rpc, paymentRPC, verifySignature } from "@/lib/paymongo/test-payments";
 const eventSchema = z.object({ data: z.object({
   id: z.string().regex(/^evt_[A-Za-z0-9]+$/), type: z.literal("event"),
@@ -17,6 +18,14 @@ export async function POST(request: Request) {
     if (!parsed.success || parsed.data.data.attributes.livemode !== config.live) throw new PaymentError(400, "Invalid payment event");
     const event = parsed.data.data;
     if (event.attributes.type !== "checkout_session.payment.paid") return respond({ ignored: true });
+    const verification = z.object({
+      id: z.string().regex(/^cs_[A-Za-z0-9]+$/), type: z.literal("checkout_session"),
+      attributes: z.object({ livemode: z.literal(true), reference_number: z.string().regex(verificationReference) }),
+    }).safeParse(event.attributes.data);
+    if (config.live && verification.success) {
+      await verifyLivePayment(verification.data.id, verification.data.attributes.reference_number);
+      return respond({ ok: true, verification: true, amountCentavos: 1000 });
+    }
     const hint = sessionHint.safeParse(event.attributes.data);
     if (!hint.success || hint.data.attributes.livemode !== config.live) throw new PaymentError(400, "Invalid checkout event");
     const db = databaseClient();
