@@ -7,31 +7,85 @@
 }
 
 .rental-preferred-time {
-  display: grid;
-  gap: 0.55rem;
-  margin-top: 1rem;
+  min-width: 0;
+  margin: 1rem 0 0;
+  padding: 0;
+  border: 0;
   color: #153f40;
+}
+.rental-preferred-time legend {
+  margin-bottom: 0.6rem;
   font-size: 0.85rem;
   font-weight: 700;
 }
-.rental-preferred-time input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 3.6rem;
-  padding: 0.8rem 1rem;
+.rental-time-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem;
   border: 1px solid #a6c8bf;
   border-radius: 1rem;
   background: #f2f8f5;
+}
+.rental-time-digits {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.1rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rental-time-digits input {
+  box-sizing: border-box;
+  width: 2.5ch;
+  min-width: 0;
+  min-height: 2.8rem;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
   color: #153f40;
   font: inherit;
-  font-size: 1.3rem;
-  color-scheme: light;
+  text-align: center;
 }
-.rental-preferred-time input:focus-visible {
+.rental-time-digits input::placeholder {
+  color: #6c8987;
+  font-size: 1.1rem;
+}
+.rental-time-digits input:focus-visible {
   outline: 2px solid #086d69;
-  outline-offset: 3px;
+  outline-offset: 1px;
+  background: white;
 }
-.rental-preferred-time input:disabled {
+.rental-time-period {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 0.75rem;
+  background: #e0ede7;
+}
+.rental-time-period button {
+  min-width: 2.6rem;
+  min-height: 2.8rem;
+  padding: 0.4rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: #315a56;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.rental-time-period button[aria-pressed="true"] {
+  background: #153f40;
+  color: white;
+}
+.rental-time-period button:focus-visible {
+  outline: 2px solid #086d69;
+  outline-offset: 2px;
+}
+.rental-preferred-time:disabled {
   opacity: 0.55;
 }

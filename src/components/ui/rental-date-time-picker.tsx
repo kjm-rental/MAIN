@@ -18,6 +18,7 @@ import {
 } from "@/lib/rental-time-slots";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import "./rental-time-selection.css";
+import { PreferredTimeInput } from "./preferred-time-input";
 
 function dayString(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -377,32 +378,24 @@ export function RentalDateTimePicker({
             </button>
           </p>
         )}
-        <label className="rental-preferred-time">
-          <span>Preferred {kind === "pickup" ? "pickup" : "return"} time</span>
-          <input
-            type="time"
-            step={60}
-            aria-describedby={`${id}-time-help ${id}-time-note ${id}-time-hours`}
-            value={
-              selectedTime.slice(0, 10) === day ? selectedTime.slice(11) : ""
-            }
-            disabled={
-              !day || loadingHours || hoursError || !hours || checkingSelection
-            }
-            onChange={(event) => {
-              setSelectedTime(
-                event.target.value ? `${day}T${event.target.value}` : "",
-              );
-              setAvailabilityMessage("");
-            }}
-          />
-        </label>
+        <PreferredTimeInput
+          key={`${day}:${kind}:${isOpen}`}
+          label={`Preferred ${kind} time`}
+          value={
+            selectedTime.slice(0, 10) === day ? selectedTime.slice(11) : ""
+          }
+          describedBy={`${id}-time-help ${id}-time-note ${id}-time-hours`}
+          disabled={
+            !day || loadingHours || hoursError || !hours || checkingSelection
+          }
+          onChange={(time) => {
+            setSelectedTime(time ? `${day}T${time}` : "");
+            setAvailabilityMessage("");
+          }}
+        />
         <p id={`${id}-time-help`} className="text-muted mt-2 text-xs leading-5">
-          Tap the hour and minutes to edit, then choose AM or PM if shown.
-          <span className="mt-1 block">
-            Example: <strong>07:25 PM</strong> (19:25) means 7:25 in the
-            evening.
-          </span>
+          Enter the hour and minutes, then tap AM or PM. For example,{" "}
+          <strong>07:25 PM</strong> is 7:25 in the evening.
         </p>
         <p
           id={`${id}-time-hours`}
