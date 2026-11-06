@@ -1,4 +1,4 @@
-const fs = require("fs");
+import fs from "node:fs";
 (async () => {
   const results = [];
   for (const url of [

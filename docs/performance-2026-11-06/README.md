@@ -19,6 +19,6 @@ Median of three sequential HTTP requests from the same local connection, before/
 | Delivery options API | 1,073 ms | 258 ms |
 | Admin sign-in | 469 ms | 228 ms |
 
-These measure complete server response transfer, not image loading, hydration, browser rendering or a universal performance guarantee. Cold starts and network variation are included. The separate homepage streaming change was added afterward: build output confirms the headline and photo are in prerendered HTML, rather than waiting for catalog reads. Measurements are in before.json/after.json; reproduce with `node scripts/measure-public-loading.cjs`.
+These measure complete server response transfer, not image loading, hydration, browser rendering or a universal performance guarantee. Cold starts and network variation are included. The separate homepage streaming change was added afterward: build output confirms the headline and photo are in prerendered HTML, rather than waiting for catalog reads. Measurements are in before.json/after.json; reproduce with `node scripts/measure-public-loading.mjs`.
 
 Validation: MAIN 471 tests, ADMIN 513 tests; both ESLint and production builds pass. Production checks confirmed the intended regions, unauthorized Admin export remains 401, and signed-in Fleet navigation shows the loading boundary then real data without another login. No SQL, prices, booking states, payments or notification-delivery settings changed.
