@@ -1,7 +1,7 @@
 import { bookingTestAttempt } from "./booking-test";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { BRAND, connected, render } from "./templates";
+import { BRAND, connected, render, safeURL } from "./templates";
 
 export type RPC = (
   name: string,
@@ -32,6 +32,10 @@ export async function dispatchOne(
   config: WorkerConfig,
   transport: typeof fetch = fetch,
 ) {
+  // Configuration errors must not lease and permanently fail a valid email.
+  safeURL(config.app);
+  safeURL(config.admin);
+  safeURL(config.review);
   const rows = z.array(rowSchema).parse(
     await rpc(
       config.bookingId ? "notification_claim_booking" : "notification_claim",

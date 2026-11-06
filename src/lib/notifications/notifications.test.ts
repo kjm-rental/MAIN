@@ -43,6 +43,17 @@ function harness(overrides = {}, recipient = "customer@example.test") {
   return { rpc, calls, transport };
 }
 describe("email templates", () => {
+  it.each(["kjmride.com", "http://127.0.0.1:3000"])(
+    "preserves queued emails when the configured app URL is invalid: %s",
+    async (app) => {
+      const h = harness();
+      await expect(
+        dispatchOne(h.rpc, { apiKey: "test", app }, h.transport),
+      ).rejects.toThrow();
+      expect(h.calls).toEqual([]);
+      expect(h.transport).not.toHaveBeenCalled();
+    },
+  );
   it.each(Object.keys(messages) as (keyof typeof messages)[])(
     "renders %s with safe booking data",
     (t) => {

@@ -190,7 +190,7 @@ const money = (n: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
     n / 100,
   );
-function safeURL(value?: string) {
+export function safeURL(value?: string) {
   if (!value) return undefined;
   const u = new URL(value);
   if (
