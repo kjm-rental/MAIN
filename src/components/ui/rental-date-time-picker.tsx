@@ -382,7 +382,7 @@ export function RentalDateTimePicker({
           <input
             type="time"
             step={60}
-            aria-describedby={`${id}-time-note ${id}-time-hours`}
+            aria-describedby={`${id}-time-help ${id}-time-note ${id}-time-hours`}
             value={
               selectedTime.slice(0, 10) === day ? selectedTime.slice(11) : ""
             }
@@ -397,6 +397,13 @@ export function RentalDateTimePicker({
             }}
           />
         </label>
+        <p id={`${id}-time-help`} className="text-muted mt-2 text-xs leading-5">
+          Tap the hour and minutes to edit, then choose AM or PM if shown.
+          <span className="mt-1 block">
+            Example: <strong>07:25 PM</strong> (19:25) means 7:25 in the
+            evening.
+          </span>
+        </p>
         <p
           id={`${id}-time-hours`}
           className="text-muted mt-2 text-xs leading-5"
