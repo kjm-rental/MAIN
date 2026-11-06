@@ -318,9 +318,17 @@ export function BookingCheckout({
     }
   }
   const [depositOption, setDepositOption] = useState(() =>
-    depositOptions?.cash_enabled ? "cash" : "",
+    depositOptions?.cash_enabled
+      ? "cash"
+      : depositOptions?.id_enabled
+        ? "eligible_id"
+        : "",
   );
-  const [depositDocument, setDepositDocument] = useState("");
+  const [depositDocument, setDepositDocument] = useState(
+    depositOptions?.accepted_document_types.length === 1
+      ? depositOptions.accepted_document_types[0]
+      : "",
+  );
   const submissionPending = useRef(false);
   const documentProgress = useRef(
     new Map<string, { file: File; path: string; uploaded: boolean }>(),
@@ -1443,11 +1451,7 @@ export function BookingCheckout({
             {step === 3 && (
               <div className="minimal-document-step">
                 <SecurityDepositChoice
-                  options={
-                    depositOptions
-                      ? { ...depositOptions, id_enabled: false }
-                      : depositOptions
-                  }
+                  options={depositOptions}
                   value={depositOption}
                   documentType={depositDocument}
                   onChange={(value) => {

@@ -68,11 +68,11 @@ export function SecurityDepositChoice({
             />
             <ShieldCheck className="text-ocean mb-3 inline-block size-5" />
             <span className="text-deep-teal block font-bold">
-              Eligible ID Card Deposit
+              Original ID deposit
             </span>
             <span className="text-muted mt-2 block text-sm leading-6">
               {options?.id_enabled
-                ? "Present the approved physical document at pickup. Only the legally reviewed types listed below are eligible."
+                ? "Leave your original ID with KJM at pickup. Collect it when you return the motorcycle."
                 : "Unavailable until KJM approves a legally reviewed policy and exact permitted document types. No passport, licence or government ID is assumed eligible."}
             </span>
           </label>
@@ -84,23 +84,25 @@ export function SecurityDepositChoice({
           documents are not automatically accepted as a deposit.
         </p>
       )}
-      {value === "eligible_id" && options?.id_enabled && (
-        <label className="text-deep-teal mt-5 block text-sm font-bold">
-          Approved physical document type
-          <select
-            className="field"
-            value={documentType}
-            onChange={(event) => onDocumentChange(event.target.value)}
-          >
-            <option value="">Select an approved document</option>
-            {options.accepted_document_types.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {value === "eligible_id" &&
+        options?.id_enabled &&
+        options.accepted_document_types.length > 1 && (
+          <label className="text-deep-teal mt-5 block text-sm font-bold">
+            ID type
+            <select
+              className="field"
+              value={documentType}
+              onChange={(event) => onDocumentChange(event.target.value)}
+            >
+              <option value="">Select an ID type</option>
+              {options.accepted_document_types.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       {(options?.cash_enabled || options?.id_enabled) && (
         <div className="bg-sand/50 text-muted mt-5 space-y-3 rounded-2xl p-5 text-sm leading-6">
           <p>{options.collection_instructions}</p>
