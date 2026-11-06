@@ -1,11 +1,14 @@
+import type { ReactNode } from "react";
 import { ArrowRight, Compass } from "lucide-react";
 import Link from "next/link";
 import type { MotorcycleModel } from "@/types/motorcycle";
 
 export function BookingPreview({
   motorcycles,
+  bikeCount,
 }: {
   motorcycles: readonly MotorcycleModel[];
+  bikeCount?: ReactNode;
 }) {
   return (
     <section
@@ -18,9 +21,10 @@ export function BookingPreview({
           <Compass aria-hidden="true" className="size-6" />
         </span>
         <span className="text-muted text-[10px] font-bold tracking-[0.16em] uppercase">
-          {motorcycles.length
-            ? `${motorcycles.length} bikes to explore`
-            : "Find your island ride"}
+          {bikeCount ??
+            (motorcycles.length
+              ? `${motorcycles.length} bikes to explore`
+              : "Find your island ride")}
         </span>
       </div>
       <h2 className="mt-6 text-3xl leading-tight font-extrabold tracking-tight sm:text-[2.25rem]">

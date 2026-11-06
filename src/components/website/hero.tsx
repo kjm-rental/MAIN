@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import type { PublicCatalogResult } from "@/services/public-catalog";
 import { ArrowRight, Compass, MapPin, Tag } from "lucide-react";
 import Image from "next/image";
 import "./hero.css";
@@ -9,9 +11,11 @@ import { Container } from "@/components/ui/container";
 import { formatPhp } from "@/lib/currency";
 
 export function Hero({
-  motorcycles,
+  motorcycles = [],
+  catalog,
 }: {
-  motorcycles: readonly MotorcycleModel[];
+  motorcycles?: readonly MotorcycleModel[];
+  catalog?: Promise<PublicCatalogResult>;
 }) {
   return (
     <section className="island-hero kjm-coastal-hero relative isolate overflow-hidden text-white">
@@ -37,15 +41,32 @@ export function Hero({
               freely.
             </span>
           </p>
-          {motorcycles.length > 0 && (
-            <p className="kjm-coastal-price mt-5 font-bold">
-              <Tag aria-hidden="true" className="kjm-coastal-price-icon" />
-              <span>
-                Island rides from{" "}
-                {formatPhp(Math.min(...motorcycles.map((m) => m.dailyRatePhp)))}
-                /day
-              </span>
-            </p>
+          {catalog ? (
+            <Suspense
+              fallback={
+                <p
+                  className="kjm-coastal-price mt-5 font-bold"
+                  aria-hidden="true"
+                >
+                  &nbsp;
+                </p>
+              }
+            >
+              <CatalogPrice catalog={catalog} />
+            </Suspense>
+          ) : (
+            motorcycles.length > 0 && (
+              <p className="kjm-coastal-price mt-5 font-bold">
+                <Tag aria-hidden="true" className="kjm-coastal-price-icon" />
+                <span>
+                  Island rides from{" "}
+                  {formatPhp(
+                    Math.min(...motorcycles.map((m) => m.dailyRatePhp)),
+                  )}
+                  /day
+                </span>
+              </p>
+            )
           )}
           <div className="kjm-coastal-actions mt-9 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href="/motorcycles">
@@ -79,9 +100,46 @@ export function Hero({
           <div aria-hidden="true" className="kjm-coastal-overlay" />
         </div>
         <div className="kjm-coastal-booking">
-          <BookingPreview motorcycles={motorcycles} />
+          <BookingPreview
+            motorcycles={motorcycles}
+            bikeCount={
+              catalog ? (
+                <Suspense fallback="Find your island ride">
+                  <CatalogCount catalog={catalog} />
+                </Suspense>
+              ) : undefined
+            }
+          />
         </div>
       </Container>
     </section>
   );
+}
+
+async function CatalogPrice({
+  catalog,
+}: {
+  catalog: Promise<PublicCatalogResult>;
+}) {
+  const { motorcycles } = await catalog;
+  if (!motorcycles.length) return null;
+  return (
+    <p className="kjm-coastal-price mt-5 font-bold">
+      <Tag aria-hidden="true" className="kjm-coastal-price-icon" />
+      <span>
+        Island rides from{" "}
+        {formatPhp(Math.min(...motorcycles.map((m) => m.dailyRatePhp)))}/day
+      </span>
+    </p>
+  );
+}
+async function CatalogCount({
+  catalog,
+}: {
+  catalog: Promise<PublicCatalogResult>;
+}) {
+  const { motorcycles } = await catalog;
+  return motorcycles.length
+    ? `${motorcycles.length} bikes to explore`
+    : "Find your island ride";
 }

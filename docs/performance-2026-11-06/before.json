@@ -1,0 +1,122 @@
+[
+  {
+    "url": "https://kjmride.com/",
+    "medianTotalMs": 1807,
+    "samples": [
+      {
+        "status": 200,
+        "firstByteMs": 292,
+        "totalMs": 3213,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 84,
+        "totalMs": 1807,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 60,
+        "totalMs": 1570,
+        "region": "sin1"
+      }
+    ]
+  },
+  {
+    "url": "https://kjmride.com/motorcycles",
+    "medianTotalMs": 2042,
+    "samples": [
+      {
+        "status": 200,
+        "firstByteMs": 64,
+        "totalMs": 1949,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 54,
+        "totalMs": 2547,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 60,
+        "totalMs": 2042,
+        "region": "sin1"
+      }
+    ]
+  },
+  {
+    "url": "https://kjmride.com/book/honda-click-125cc",
+    "medianTotalMs": 1993,
+    "samples": [
+      {
+        "status": 200,
+        "firstByteMs": 142,
+        "totalMs": 2570,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 59,
+        "totalMs": 1955,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 93,
+        "totalMs": 1993,
+        "region": "sin1"
+      }
+    ]
+  },
+  {
+    "url": "https://kjmride.com/api/delivery/options",
+    "medianTotalMs": 1073,
+    "samples": [
+      {
+        "status": 200,
+        "firstByteMs": 1134,
+        "totalMs": 1136,
+        "region": "sin1::iad1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 1072,
+        "totalMs": 1073,
+        "region": "sin1::iad1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 1004,
+        "totalMs": 1004,
+        "region": "sin1::iad1"
+      }
+    ]
+  },
+  {
+    "url": "https://kjmadmin.vercel.app/sign-in",
+    "medianTotalMs": 469,
+    "samples": [
+      {
+        "status": 200,
+        "firstByteMs": 216,
+        "totalMs": 527,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 82,
+        "totalMs": 333,
+        "region": "sin1"
+      },
+      {
+        "status": 200,
+        "firstByteMs": 74,
+        "totalMs": 469,
+        "region": "sin1"
+      }
+    ]
+  }
+]
