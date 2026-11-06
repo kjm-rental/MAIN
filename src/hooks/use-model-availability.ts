@@ -17,12 +17,14 @@ export function useModelAvailability({
   month,
   open,
   now,
+  checkOnly = false,
 }: {
   context?: AvailabilityContext;
   hours: RentalOperatingHours | null;
   month: string;
   open: boolean;
   now: Date;
+  checkOnly?: boolean;
 }) {
   const [response, setResponse] = useState<{
     signature: string;
@@ -36,7 +38,7 @@ export function useModelAvailability({
     returnAt = context?.returnAt,
     duration = context?.durationMinutes;
   const periods = useMemo(() => {
-    if (!modelId || !kind || !hours || !month) return [];
+    if (checkOnly || !modelId || !kind || !hours || !month) return [];
     const total = new Date(
       Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0),
     ).getUTCDate();
@@ -68,7 +70,7 @@ export function useModelAvailability({
         if (period) map.set(slot.value, period);
       }
     return [...map.values()];
-  }, [modelId, kind, pickup, returnAt, duration, hours, month, now]);
+  }, [modelId, kind, pickup, returnAt, duration, hours, month, now, checkOnly]);
   const signature = JSON.stringify([
     modelId,
     kind,
@@ -84,9 +86,9 @@ export function useModelAvailability({
   const current = response.signature === signature;
   const counts = current ? response.counts : {};
   const error = current ? response.error : "";
-  const loading = Boolean(modelId && open && hours && !current);
+  const loading = Boolean(!checkOnly && modelId && open && hours && !current);
   useEffect(() => {
-    if (!modelId || !open || !hours) return;
+    if (checkOnly || !modelId || !open || !hours) return;
     let live = true;
     async function load() {
       try {
@@ -120,7 +122,7 @@ export function useModelAvailability({
     return () => {
       live = false;
     };
-  }, [modelId, open, hours, periods, signature]);
+  }, [modelId, open, hours, periods, signature, checkOnly]);
   async function checkSelected(value: string) {
     if (!context) return true;
     const period = availabilityPeriod(value, context);

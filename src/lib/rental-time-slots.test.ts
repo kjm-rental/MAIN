@@ -6,6 +6,7 @@ import {
   readRentalOperatingHours,
   rentalTimeSlots,
   shiftRentalDay,
+  preferredRentalTime,
   type RentalOperatingHours,
 } from "./rental-time-slots";
 
@@ -20,6 +21,37 @@ const hours: RentalOperatingHours = {
   },
   tuesday: { enabled: false },
 };
+
+describe("preferred minute-level rental times", () => {
+  it("accepts a preferred minute between the preset half-hour slots", () => {
+    expect(
+      preferredRentalTime("2026-10-12T10:17", hours, "pickup")?.value,
+    ).toBe("2026-10-12T10:17");
+    expect(
+      preferredRentalTime("2026-10-12T17:43", hours, "return")?.label,
+    ).toBe("5:43 PM");
+  });
+  it.each([
+    "2026-10-12T07:59",
+    "2026-10-11T12:17",
+    "2026-10-12T24:01",
+    "2026-02-30T10:17",
+  ])("rejects closed or invalid pickup time %s", (value) => {
+    expect(preferredRentalTime(value, hours, "pickup")).toBeNull();
+  });
+  it("applies separate return hours to arbitrary minutes", () => {
+    expect(preferredRentalTime("2026-10-12T18:01", hours, "return")).toBeNull();
+    expect(
+      preferredRentalTime("2026-10-12T18:00", hours, "return"),
+    ).not.toBeNull();
+  });
+  it("accepts only the closing midnight on an otherwise closed day", () => {
+    expect(
+      preferredRentalTime("2026-10-13T00:00", hours, "pickup"),
+    ).not.toBeNull();
+    expect(preferredRentalTime("2026-10-13T00:01", hours, "pickup")).toBeNull();
+  });
+});
 
 describe("configured rental time slots", () => {
   it("generates half-hour slots from configured pickup hours, including end-of-day midnight", () => {

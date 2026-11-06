@@ -5,3 +5,33 @@
   line-height: 1.25;
   white-space: nowrap;
 }
+
+.rental-preferred-time {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  color: #153f40;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.rental-preferred-time input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 3.6rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #a6c8bf;
+  border-radius: 1rem;
+  background: #f2f8f5;
+  color: #153f40;
+  font: inherit;
+  font-size: 1.3rem;
+  color-scheme: light;
+}
+.rental-preferred-time input:focus-visible {
+  outline: 2px solid #086d69;
+  outline-offset: 3px;
+}
+.rental-preferred-time input:disabled {
+  opacity: 0.55;
+}

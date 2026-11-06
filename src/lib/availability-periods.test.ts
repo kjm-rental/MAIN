@@ -1,5 +1,15 @@
 import { expect, it } from "vitest";
 import { availabilityPeriod } from "./availability-periods";
+it("checks custom minutes exactly without rounding to preset slots", () => {
+  const period = availabilityPeriod("2026-11-10T09:17", {
+    modelId: "00000000-0000-4000-8000-000000000001",
+    kind: "pickup",
+    returnAt: "2026-11-12T10:43",
+    durationMinutes: 1440,
+  });
+  expect(period?.start_at).toBe("2026-11-10T01:17:00.000Z");
+  expect(period?.end_at).toBe("2026-11-12T02:43:00.000Z");
+});
 const modelId = "00000000-0000-4000-8000-000000000001";
 it("checks the full requested duration for initial pickup slots across midnight", () =>
   expect(

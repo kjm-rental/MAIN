@@ -81,6 +81,53 @@ function minutes(time: string) {
   return hour * 60 + minute;
 }
 
+export function preferredRentalTime(
+  value: string,
+  hours: RentalOperatingHours | null,
+  kind: RentalTimeKind,
+): RentalTimeSlot | null {
+  if (!hours || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const [day, time] = value.split("T");
+  const date = new Date(`${day}T12:00:00Z`);
+  if (
+    !timePattern.test(time) ||
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== day
+  )
+    return null;
+  const schedule = scheduleFor(day, hours);
+  const previous = scheduleFor(shiftRentalDay(day, -1), hours);
+  const boundary =
+    time === "00:00" &&
+    previous?.enabled &&
+    previous[`${kind}Close`] === "00:00";
+  const inside =
+    schedule?.enabled &&
+    minutes(time) >= minutes(schedule[`${kind}Open`]) &&
+    minutes(time) <=
+      (schedule[`${kind}Close`] === "00:00"
+        ? 1440
+        : minutes(schedule[`${kind}Close`]));
+  return boundary || inside
+    ? { value, label: formatRentalTime(time), nextDay: false }
+    : null;
+}
+
+export function rentalTimeHoursLabel(
+  day: string,
+  hours: RentalOperatingHours | null,
+  kind: RentalTimeKind,
+) {
+  if (!hours || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  const schedule = scheduleFor(day, hours);
+  if (schedule?.enabled)
+    return `${formatRentalTime(schedule[`${kind}Open`])}–${schedule[`${kind}Close`] === "00:00" ? "midnight" : formatRentalTime(schedule[`${kind}Close`])}`;
+  const previous = scheduleFor(shiftRentalDay(day, -1), hours);
+  return previous?.enabled && previous[`${kind}Close`] === "00:00"
+    ? "Midnight only"
+    : "Closed";
+}
+
 // Match the existing database validator: midnight may belong to the prior
 // business day's closing boundary, even when its actual calendar day is closed.
 export function rentalTimeSlots(

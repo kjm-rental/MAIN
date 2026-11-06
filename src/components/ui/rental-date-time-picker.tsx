@@ -10,6 +10,8 @@ import {
   manilaDay,
   readRentalOperatingHours,
   rentalTimeSlots,
+  preferredRentalTime,
+  rentalTimeHoursLabel,
   type RentalTimeKind,
 } from "@/lib/rental-time-slots";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -79,18 +81,14 @@ export function RentalDateTimePicker({
     month,
     open: isOpen,
     now,
+    checkOnly: true,
   });
-  const [timeMenuOpen, setTimeMenuOpen] = useState(false);
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [checkingSelection, setCheckingSelection] = useState(false);
-  const slots = rentalTimeSlots(day, hours, kind);
   const selectable = (time: string, clock = now) =>
-    isRentalTimeSelectable(time, clock, after) &&
-    (!availability ||
-      (!liveAvailability.loading &&
-        !liveAvailability.error &&
-        (liveAvailability.counts[time] ?? 0) > 0));
-  const selectedSlot = slots.find((slot) => slot.value === selectedTime);
+    Boolean(preferredRentalTime(time, hours, kind)) &&
+    isRentalTimeSelectable(time, clock, after);
+  const selectedSlot = preferredRentalTime(selectedTime, hours, kind);
   const canApply = Boolean(
     selectedSlot &&
     selectable(selectedSlot.value) &&
@@ -102,7 +100,9 @@ export function RentalDateTimePicker({
   function dayAvailable(date: string) {
     return (
       date >= today &&
-      rentalTimeSlots(date, hours, kind).some((slot) => selectable(slot.value))
+      rentalTimeSlots(date, hours, kind).some((slot) =>
+        isRentalTimeSelectable(slot.value, now, after),
+      )
     );
   }
   useEffect(() => {
@@ -162,7 +162,6 @@ export function RentalDateTimePicker({
         setAvailabilityMessage(
           "Fully booked for your selected dates. Please choose another date or motorcycle.",
         );
-        liveAvailability.refresh();
         return;
       }
       const next = selectedSlot.value;
@@ -222,6 +221,7 @@ export function RentalDateTimePicker({
         <button
           type="button"
           aria-label="Previous month"
+          disabled={checkingSelection}
           onClick={() => moveMonth(-1)}
           className="hover:bg-sand grid size-11 place-items-center rounded-full"
         >
@@ -237,6 +237,7 @@ export function RentalDateTimePicker({
         <button
           type="button"
           aria-label="Next month"
+          disabled={checkingSelection}
           onClick={() => moveMonth(1)}
           className="hover:bg-sand grid size-11 place-items-center rounded-full"
         >
@@ -266,7 +267,12 @@ export function RentalDateTimePicker({
                 day: "numeric",
                 timeZone: "UTC",
               })}
-              disabled={!dayAvailable(date) || loadingHours || hoursError}
+              disabled={
+                !dayAvailable(date) ||
+                loadingHours ||
+                hoursError ||
+                checkingSelection
+              }
               title={
                 !dayAvailable(date) &&
                 !loadingHours &&
@@ -338,7 +344,7 @@ export function RentalDateTimePicker({
                 ? "Choose a pickup date and time first."
                 : hoursError || !hours
                   ? "Operating hours are unavailable. Please contact KJM."
-                  : "KJM hours · availability checked at booking."}
+                  : "Enter your preferred time. Availability is checked when you confirm."}
         </p>
         {(liveAvailability.error || availabilityMessage) && (
           <p role="alert" className="text-muted mt-2 text-xs">
@@ -347,7 +353,7 @@ export function RentalDateTimePicker({
               type="button"
               onClick={() => {
                 setAvailabilityMessage("");
-                liveAvailability.refresh();
+                void apply();
               }}
               className="ml-2 font-bold underline"
             >
@@ -355,146 +361,44 @@ export function RentalDateTimePicker({
             </button>
           </p>
         )}
-        {inline ? (
-          <div
-            className="rental-time-menu"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget))
-                setTimeMenuOpen(false);
+        <label className="rental-preferred-time">
+          <span>Preferred {kind === "pickup" ? "pickup" : "return"} time</span>
+          <input
+            type="time"
+            step={60}
+            aria-describedby={`${id}-time-note ${id}-time-hours`}
+            value={
+              selectedTime.slice(0, 10) === day ? selectedTime.slice(11) : ""
+            }
+            disabled={
+              !day || loadingHours || hoursError || !hours || checkingSelection
+            }
+            onChange={(event) => {
+              setSelectedTime(
+                event.target.value ? `${day}T${event.target.value}` : "",
+              );
+              setAvailabilityMessage("");
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setTimeMenuOpen(false);
-            }}
-          >
-            <button
-              type="button"
-              aria-expanded={timeMenuOpen}
-              aria-controls={`${id}-time-menu`}
-              aria-describedby={`${id}-time-note`}
-              disabled={
-                loadingHours ||
-                hoursError ||
-                !hours ||
-                liveAvailability.loading ||
-                !!liveAvailability.error
-              }
-              onClick={() => setTimeMenuOpen((open) => !open)}
-              className="rental-time-menu-trigger"
-            >
-              <span>
-                <small>
-                  {kind === "pickup" ? "Pickup time" : "Return time"} · Manila
-                </small>
-                <strong>
-                  {liveAvailability.loading
-                    ? "Checking times…"
-                    : selectedSlot && selectable(selectedSlot.value)
-                      ? `${selectedSlot.label}${selectedSlot.nextDay ? " · next day" : ""}`
-                      : "Select a time"}
-                </strong>
-              </span>
-              <ChevronRight
-                size={18}
-                aria-hidden="true"
-                className={timeMenuOpen ? "rotate-90" : ""}
-              />
-            </button>
-            {timeMenuOpen && (
-              <div
-                id={`${id}-time-menu`}
-                role="group"
-                aria-label="Available times"
-                className="rental-time-menu-options"
-              >
-                {slots
-                  .filter((slot) => selectable(slot.value))
-                  .map((slot) => (
-                    <button
-                      key={slot.value}
-                      type="button"
-                      aria-pressed={selectedTime === slot.value}
-                      onClick={() => {
-                        setSelectedTime(slot.value);
-                        setTimeMenuOpen(false);
-                      }}
-                    >
-                      {slot.label}
-                      {slot.nextDay ? " · next day" : ""}
-                    </button>
-                  ))}
-                {!slots.some((slot) => selectable(slot.value)) && (
-                  <p>No times available for this date.</p>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            role="group"
-            aria-labelledby={`${id}-times`}
-            aria-describedby={`${id}-time-note`}
-            className={`rental-time-grid mt-2 grid ${inline ? "max-h-48" : "max-h-28"} grid-cols-3 gap-2 overflow-y-auto overscroll-contain p-1`}
-          >
-            {!loadingHours &&
-              !hoursError &&
-              slots.map((slot) => (
-                <button
-                  key={slot.value}
-                  type="button"
-                  data-time-slot={slot.value}
-                  disabled={!selectable(slot.value)}
-                  aria-pressed={selectedTime === slot.value}
-                  aria-label={`${slot.label}${slot.nextDay ? `, next day (${slot.value.slice(0, 10)})` : ""}`}
-                  onClick={() => setSelectedTime(slot.value)}
-                  onKeyDown={(event) => {
-                    const buttons = Array.from(
-                      event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(
-                        "button:not(:disabled)",
-                      ),
-                    );
-                    const index = buttons.indexOf(event.currentTarget);
-                    const offset = {
-                      ArrowLeft: -1,
-                      ArrowRight: 1,
-                      ArrowUp: -3,
-                      ArrowDown: 3,
-                    }[event.key];
-                    const target =
-                      event.key === "Home"
-                        ? 0
-                        : event.key === "End"
-                          ? buttons.length - 1
-                          : offset === undefined
-                            ? null
-                            : Math.max(
-                                0,
-                                Math.min(buttons.length - 1, index + offset),
-                              );
-                    if (target === null) return;
-                    event.preventDefault();
-                    buttons[target]?.focus();
-                  }}
-                  className={`focus-visible:outline-ocean min-h-11 rounded-xl border px-1 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-35 ${selectedTime === slot.value ? "border-deep-teal bg-deep-teal text-white" : "border-deep-teal/20 text-deep-teal hover:border-sunset hover:bg-sand/60 bg-white"}`}
-                >
-                  {slot.label}
-                  {slot.nextDay && (
-                    <span className="mt-0.5 block text-[10px]">Next day</span>
-                  )}
-                </button>
-              ))}
-          </div>
+          />
+        </label>
+        <p
+          id={`${id}-time-hours`}
+          className="text-muted mt-2 text-xs leading-5"
+        >
+          {rentalTimeHoursLabel(day, hours, kind)} · Choose any minute. Times
+          are local to Cebu.
+        </p>
+        {selectedTime && !selectedSlot && (
+          <p role="alert" className="mt-2 text-xs text-red-700">
+            Choose a time within the operating hours shown above.
+          </p>
         )}
-        {!loadingHours &&
-          !liveAvailability.loading &&
-          !liveAvailability.error &&
-          hours &&
-          !slots.some((slot) => selectable(slot.value)) && (
-            <p role="status" className="text-muted mt-2 text-xs">
-              {availability &&
-              !liveAvailability.loading &&
-              !liveAvailability.error
-                ? "Fully booked for your selected dates. Please choose another date or motorcycle."
-                : `No selectable ${kind} times on this date. Choose another date.`}
+        {selectedSlot &&
+          !isRentalTimeSelectable(selectedSlot.value, now, after) && (
+            <p role="alert" className="mt-2 text-xs text-red-700">
+              {kind === "return"
+                ? "Choose a return time after pickup and in the future."
+                : "Choose a pickup time in the future."}
             </p>
           )}
       </div>
@@ -514,11 +418,13 @@ export function RentalDateTimePicker({
           disabled={!canApply}
           className="bg-sunset text-deep-teal min-h-12 flex-1 rounded-full text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {inline
-            ? kind === "pickup"
-              ? "Confirm pickup →"
-              : "Confirm return →"
-            : "Use this time"}
+          {checkingSelection
+            ? "Checking availability…"
+            : inline
+              ? kind === "pickup"
+                ? "Confirm pickup →"
+                : "Confirm return →"
+              : "Use this time"}
         </button>
       </div>
     </>
