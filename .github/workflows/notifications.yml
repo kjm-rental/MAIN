@@ -1,0 +1,28 @@
+name: Transactional notifications
+
+on:
+  schedule:
+    - cron: "1-56/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transactional-notifications
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: vars.KJM_NOTIFICATIONS_SCHEDULER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Process bounded email and owner notification batches
+        env:
+          KJM_NOTIFICATION_DISPATCH_SECRET: ${{ secrets.KJM_NOTIFICATION_DISPATCH_SECRET }}
+          KJM_ADMIN_NOTIFICATION_CRON_SECRET: ${{ secrets.KJM_ADMIN_NOTIFICATION_CRON_SECRET }}
+        run: node scripts/notifications-dispatch.cjs
