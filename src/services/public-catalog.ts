@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { cache } from "react";
 
 import { hasSupabasePublicConfig } from "@/lib/supabase/env";
 import { createPublicCatalogClient } from "@/lib/supabase/public-catalog";
@@ -113,7 +114,7 @@ async function fetchVerifiedMediaRows(
   return data;
 }
 
-export async function getPublicMotorcycleCatalog(
+async function loadPublicMotorcycleCatalog(
   dependencies: CatalogDependencies = {},
 ): Promise<PublicCatalogResult> {
   const isConfigured = dependencies.isConfigured ?? hasSupabasePublicConfig();
@@ -144,26 +145,27 @@ export async function getPublicMotorcycleCatalog(
         (process.env.KJM_PAYMONGO_TEST !== "true" ||
           testPublicCatalogSlugs.includes(row.slug)),
     );
-    const mediaRows = dependencies.fetchMediaRows
-      ? await dependencies.fetchMediaRows()
-      : dependencies.fetchRows
-        ? []
-        : await fetchVerifiedMediaRows(
-            rows.flatMap((row) => (row.id ? [row.id] : [])),
-          );
-    // Package rates are optional: restricted/unavailable pricing must never hide models.
-    let rateRows: readonly PackageRateRow[] = [];
-    try {
-      rateRows = dependencies.fetchRateRows
-        ? await dependencies.fetchRateRows()
+    const modelIds = rows.flatMap((row) => (row.id ? [row.id] : []));
+    // Media and package rates depend on models, but not on one another.
+    // Optional rate failures must never hide an otherwise valid catalog.
+    const [mediaRows, rateRows] = await Promise.all([
+      dependencies.fetchMediaRows
+        ? dependencies.fetchMediaRows()
         : dependencies.fetchRows
-          ? []
-          : await fetchPackageRates(
-              rows.flatMap((row) => (row.id ? [row.id] : [])),
-            );
-    } catch {
-      // Keep the catalog available; unconfigured package prices display “Ask KJM”.
-    }
+          ? Promise.resolve([])
+          : fetchVerifiedMediaRows(modelIds),
+      (async (): Promise<readonly PackageRateRow[]> => {
+        try {
+          return dependencies.fetchRateRows
+            ? await dependencies.fetchRateRows()
+            : dependencies.fetchRows
+              ? []
+              : await fetchPackageRates(modelIds);
+        } catch {
+          return [];
+        }
+      })(),
+    ]);
     const now = Date.now();
     const packageRate = (id: string | undefined, type: string) => {
       const values = rateRows
@@ -274,4 +276,15 @@ function isVerificationStatus(
   value: string,
 ): value is "verified" | "reference_only" | "pending" {
   return ["verified", "reference_only", "pending"].includes(value);
+}
+
+// Deduplicate metadata/page reads only within one server request. Catalog edits
+// remain visible on the next request; no shared or time-based price cache.
+const requestCatalog = cache(() => loadPublicMotorcycleCatalog());
+export async function getPublicMotorcycleCatalog(
+  dependencies?: CatalogDependencies,
+): Promise<PublicCatalogResult> {
+  return dependencies
+    ? loadPublicMotorcycleCatalog(dependencies)
+    : requestCatalog();
 }

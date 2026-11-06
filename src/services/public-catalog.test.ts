@@ -166,18 +166,16 @@ it("shows current saved weekly and monthly rates without deriving or inventing p
 it("keeps motorcycles visible when optional public package rates cannot load", async () => {
   const result = await getPublicMotorcycleCatalog({
     isConfigured: true,
-    fetchRows: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: "model",
-          slug: "suzuki-v-strom-160",
-          display_name: "Suzuki V-Strom 160",
-          daily_rate_php: 850,
-          is_published: true,
-          archived_at: null,
-        },
-      ]),
+    fetchRows: vi.fn().mockResolvedValue([
+      {
+        id: "model",
+        slug: "suzuki-v-strom-160",
+        display_name: "Suzuki V-Strom 160",
+        daily_rate_php: 850,
+        is_published: true,
+        archived_at: null,
+      },
+    ]),
     fetchRateRows: vi
       .fn()
       .mockRejectedValue(
@@ -188,4 +186,32 @@ it("keeps motorcycles visible when optional public package rates cannot load", a
   expect(result.motorcycles).toHaveLength(1);
   expect(result.motorcycles[0].dailyRatePhp).toBe(850);
   expect(result.motorcycles[0].weeklyRatePhp).toBeUndefined();
+});
+
+it("loads media and optional rates together rather than serially", async () => {
+  let releaseMedia!: () => void;
+  let mediaStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    mediaStarted = resolve;
+  });
+  const fetchRateRows = vi.fn().mockResolvedValue([]);
+  const pending = getPublicMotorcycleCatalog({
+    isConfigured: true,
+    fetchRows: async () => [],
+    fetchMediaRows: async () => {
+      mediaStarted();
+      await new Promise<void>((resolve) => {
+        releaseMedia = resolve;
+      });
+      return [];
+    },
+    fetchRateRows,
+  });
+  await started;
+  try {
+    expect(fetchRateRows).toHaveBeenCalledOnce();
+  } finally {
+    releaseMedia();
+  }
+  expect((await pending).source).toBe("supabase");
 });

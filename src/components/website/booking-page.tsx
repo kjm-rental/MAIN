@@ -2,6 +2,7 @@ import {
   depositOptionsSchema,
   isMissingDepositSchema,
 } from "@/lib/security-deposits";
+import { hasSupabasePublicConfig } from "@/lib/supabase/env";
 import { notFound } from "next/navigation";
 import { BookingCheckout } from "@/components/website/booking-checkout";
 import { Container } from "@/components/ui/container";
@@ -10,17 +11,15 @@ import { getPublicMotorcycleCatalog } from "@/services/public-catalog";
 import testPublicExtraIds from "@/lib/constants/test-public-extras.json";
 
 export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
-  const catalog = await getPublicMotorcycleCatalog();
-  const motorcycle = selectedSlug
-    ? catalog.motorcycles.find((m) => m.slug === selectedSlug)
-    : catalog.motorcycles.find((m) => m.id);
-  if (!motorcycle || !motorcycle.id) notFound();
+  if (!hasSupabasePublicConfig()) notFound();
   const supabase = createPublicCatalogClient();
   const [
+    catalog,
     { data: settings, error: settingsError },
     { data: extras, error: extrasError },
     depositResult,
   ] = await Promise.all([
+    getPublicMotorcycleCatalog(),
     supabase
       .from("booking_settings")
       .select(
@@ -36,6 +35,10 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
       .order("name"),
     supabase.rpc("get_security_deposit_options"),
   ]);
+  const motorcycle = selectedSlug
+    ? catalog.motorcycles.find((m) => m.slug === selectedSlug)
+    : catalog.motorcycles.find((m) => m.id);
+  if (!motorcycle || !motorcycle.id) notFound();
   if (depositResult.error && !isMissingDepositSchema(depositResult.error))
     throw new Error("Security deposit options could not be loaded.");
   const depositOptions =
