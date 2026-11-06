@@ -7,6 +7,7 @@ import {
   rentalTimeSlots,
   shiftRentalDay,
   preferredRentalTime,
+  rentalTimeHoursLabel,
   type RentalOperatingHours,
 } from "./rental-time-slots";
 
@@ -192,5 +193,37 @@ describe("Manila boundaries and pickup/return ordering", () => {
     ["23:30", "11:30 PM"],
   ])("formats %s as %s", (time, label) =>
     expect(formatRentalTime(time)).toBe(label),
+  );
+});
+
+it("accepts exact minute selections throughout a 24-hour day", () => {
+  const allDay = Object.fromEntries(
+    [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ].map((day) => [
+      day,
+      {
+        enabled: true,
+        pickupOpen: "00:00",
+        pickupClose: "00:00",
+        returnOpen: "00:00",
+        returnClose: "00:00",
+      },
+    ]),
+  );
+  const hours = readRentalOperatingHours(allDay);
+  for (const time of ["00:00", "02:17", "07:43", "23:59"])
+    for (const kind of ["pickup", "return"] as const)
+      expect(
+        preferredRentalTime(`2026-11-10T${time}`, hours, kind)?.value,
+      ).toBe(`2026-11-10T${time}`);
+  expect(rentalTimeHoursLabel("2026-11-10", hours, "pickup")).toBe(
+    "Available 24 hours",
   );
 });

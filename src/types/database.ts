@@ -553,6 +553,14 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_booking_time_blocks: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          start_at: string;
+          end_at: string;
+          scope: "pickup" | "return" | "both";
+        }[];
+      };
       get_available_booking_accessories: {
         Args: { p_model_id: string; p_start_at: string; p_end_at: string };
         Returns: { id: string }[];

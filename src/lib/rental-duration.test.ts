@@ -10,9 +10,11 @@ it.each([
   [72, "3 days"],
   [168, "7 days"],
   [720, "30 days"],
-  [25.01, "1 day + 2 hours"],
+  [25 + 17 / 60, "1 day + 1 hour + 17 minutes"],
+  [24 + 1 / 60, "1 day + 1 minute"],
+  [47 + 59 / 60, "1 day + 23 hours + 59 minutes"],
 ])(
-  "labels %s hours using complete days and rounded remaining hours",
+  "labels %s hours using actual complete days, hours and minutes",
   (hours, label) => {
     expect(
       rentalDuration(

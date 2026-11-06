@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useBookingTimeBlocks } from "@/hooks/use-booking-time-blocks";
+import { isBookingTimeBlocked } from "@/lib/booking-time-blocks";
 import { useModelAvailability } from "@/hooks/use-model-availability";
 import type { AvailabilityContext } from "@/lib/availability-periods";
 import { createClient } from "@/lib/supabase/client";
@@ -75,6 +77,7 @@ export function RentalDateTimePicker({
       ),
     [operatingHours, loadedHours],
   );
+  const timeBlocks = useBookingTimeBlocks(isOpen, month);
   const liveAvailability = useModelAvailability({
     context: availability,
     hours,
@@ -87,13 +90,16 @@ export function RentalDateTimePicker({
   const [checkingSelection, setCheckingSelection] = useState(false);
   const selectable = (time: string, clock = now) =>
     Boolean(preferredRentalTime(time, hours, kind)) &&
-    isRentalTimeSelectable(time, clock, after);
+    isRentalTimeSelectable(time, clock, after) &&
+    !isBookingTimeBlocked(time, kind, timeBlocks.blocks);
   const selectedSlot = preferredRentalTime(selectedTime, hours, kind);
   const canApply = Boolean(
     selectedSlot &&
     selectable(selectedSlot.value) &&
     !loadingHours &&
     !hoursError &&
+    !timeBlocks.loading &&
+    !timeBlocks.error &&
     !checkingSelection,
   );
   const today = manilaDay(now);
@@ -158,6 +164,13 @@ export function RentalDateTimePicker({
       return;
     setCheckingSelection(true);
     try {
+      if (!(await timeBlocks.checkSelected(selectedSlot.value, kind))) {
+        setAvailabilityMessage(
+          "This time is unavailable. Please choose another time.",
+        );
+        timeBlocks.retry();
+        return;
+      }
       if (!(await liveAvailability.checkSelected(selectedSlot.value))) {
         setAvailabilityMessage(
           "Fully booked for your selected dates. Please choose another date or motorcycle.",
@@ -336,8 +349,8 @@ export function RentalDateTimePicker({
           </p>
         </div>
         <p id={`${id}-time-note`} className="text-muted mt-1 text-xs leading-5">
-          {loadingHours
-            ? "Loading KJM’s operating hours…"
+          {loadingHours || timeBlocks.loading
+            ? "Checking available times…"
             : liveAvailability.loading
               ? "Checking motorcycle availability…"
               : availability && kind === "return" && !availability.pickup
@@ -346,13 +359,16 @@ export function RentalDateTimePicker({
                   ? "Operating hours are unavailable. Please contact KJM."
                   : "Enter your preferred time. Availability is checked when you confirm."}
         </p>
-        {(liveAvailability.error || availabilityMessage) && (
+        {(liveAvailability.error ||
+          availabilityMessage ||
+          timeBlocks.error) && (
           <p role="alert" className="text-muted mt-2 text-xs">
-            {availabilityMessage || liveAvailability.error}
+            {availabilityMessage || timeBlocks.error || liveAvailability.error}
             <button
               type="button"
               onClick={() => {
                 setAvailabilityMessage("");
+                timeBlocks.retry();
                 void apply();
               }}
               className="ml-2 font-bold underline"
@@ -388,6 +404,12 @@ export function RentalDateTimePicker({
           {rentalTimeHoursLabel(day, hours, kind)} · Choose any minute. Times
           are local to Cebu.
         </p>
+        {selectedSlot &&
+          isBookingTimeBlocked(selectedSlot.value, kind, timeBlocks.blocks) && (
+            <p role="alert" className="mt-2 text-xs text-red-700">
+              This {kind} time is unavailable. Please enter another time.
+            </p>
+          )}
         {selectedTime && !selectedSlot && (
           <p role="alert" className="mt-2 text-xs text-red-700">
             Choose a time within the operating hours shown above.

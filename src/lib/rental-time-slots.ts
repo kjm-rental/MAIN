@@ -120,6 +120,12 @@ export function rentalTimeHoursLabel(
 ) {
   if (!hours || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
   const schedule = scheduleFor(day, hours);
+  if (
+    schedule?.enabled &&
+    schedule[`${kind}Open`] === "00:00" &&
+    schedule[`${kind}Close`] === "00:00"
+  )
+    return "Available 24 hours";
   if (schedule?.enabled)
     return `${formatRentalTime(schedule[`${kind}Open`])}–${schedule[`${kind}Close`] === "00:00" ? "midnight" : formatRentalTime(schedule[`${kind}Close`])}`;
   const previous = scheduleFor(shiftRentalDay(day, -1), hours);

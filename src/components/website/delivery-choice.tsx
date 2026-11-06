@@ -261,8 +261,11 @@ export function DeliveryChoice({
             </div>
             <p className={styles.hours}>
               <Clock3 size={14} aria-hidden="true" />
-              Available {hours(config[`${leg}_open`])}–
-              {hours(config[`${leg}_close`])}
+              Available{" "}
+              {config[`${leg}_open`].slice(0, 5) === "00:00" &&
+              config[`${leg}_close`].slice(0, 5) === "00:00"
+                ? "24/7"
+                : `${hours(config[`${leg}_open`])}–${hours(config[`${leg}_close`])}`}
               <span>Philippine time</span>
             </p>
           </fieldset>
