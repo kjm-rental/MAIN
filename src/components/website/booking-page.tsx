@@ -29,9 +29,7 @@ export async function BookingPage({ selectedSlug }: { selectedSlug?: string }) {
       .maybeSingle(),
     supabase
       .from("booking_extras_catalog")
-      .select(
-        "id,name,description,price_php,price_centavos,pricing_model,total_quantity,max_per_booking,image_path",
-      )
+      .select("*")
       .eq("is_active", true)
       .eq("is_available", true)
       .order("display_order")

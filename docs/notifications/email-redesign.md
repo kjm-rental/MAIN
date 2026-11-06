@@ -1,3 +1,13 @@
+# Compact email refresh — November 3, 2026
+
+The shared renderer now uses a small original-logo header, one main heading, a status label, compact label/value booking details and a quiet footer. Scenic hero/footer images and repeated titles have been removed. Zero additional-time/rate/extension rows are omitted; actual extension charges remain visible in HTML and plain text. Selected motorcycle colors, delivery/collection, deposit options, secure links and event copy are retained.
+
+Regenerate four fictional previews with `node scripts/preview-notification-emails.cjs`. The script now resolves application imports under Node. Start with [booking request](previews/booking-requested.html) or [all previews](previews/index.html). Older PNGs/browser metrics below describe the previous design, not this refresh. The booking-request HTML was visually inspected in desktop Edge; live Gmail/Outlook and mobile rendering were not tested for this refresh.
+
+Validation: 112 focused notification tests, TypeScript and focused ESLint pass. The broader notification run encountered five standalone smoke-test failures caused by its existing direct Node import of unresolved `@/lib` aliases. No smoke email was sent. Changes are local and have not been deployed.
+
+---
+
 # KJM email presentation redesign
 
 October 23, 2026 · MAIN only. Implemented against the three-panel reference attached in the conversation. No website pages, ADMIN files, database schema/data, booking/verification decisions, worker, API routes, event mappings, recipient logic, retries or idempotency logic were changed. No email, migration, deployment, push, payment activation or production database operation occurred.

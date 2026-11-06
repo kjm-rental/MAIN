@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { Camera, Upload, Check, Maximize2, X } from "lucide-react";
+import { Camera, Upload, Check, Maximize2, X, FileText } from "lucide-react";
 import {
   DOCUMENT_ACCEPT,
   documentFileError,
@@ -38,8 +38,14 @@ export function BookingDocumentUpload({
     if (!message) onChange(next);
   }
   return (
-    <section className="minimal-upload" aria-labelledby={`${id}-title`}>
+    <section
+      className={`minimal-upload ${file ? "has-document" : ""}`}
+      aria-labelledby={`${id}-title`}
+    >
       <div className="minimal-upload-heading">
+        <span className="document-card-icon" aria-hidden="true">
+          {file ? <Check size={20} /> : <FileText size={20} />}
+        </span>
         <h3 id={`${id}-title`}>{label}</h3>
         <span>{required ? "Required" : "Optional"}</span>
       </div>
@@ -84,6 +90,11 @@ export function BookingDocumentUpload({
             <Maximize2 size={14} /> Enlarge
           </span>
         </button>
+      )}
+      {!file && (
+        <p className="document-card-guidance">
+          A clear, full photo with every corner visible.
+        </p>
       )}
       <div className="minimal-upload-actions">
         <button type="button" onClick={() => camera.current?.click()}>

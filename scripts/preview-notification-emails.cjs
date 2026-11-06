@@ -4,6 +4,18 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 (async () => {
   const root = path.resolve(__dirname, "..");
+  // Resolve application aliases for Node’s direct TypeScript preview import.
+  require("node:module").registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.startsWith("@/"))
+        return nextResolve(
+          pathToFileURL(path.join(root, "src", specifier.slice(2) + ".ts"))
+            .href,
+          context,
+        );
+      return nextResolve(specifier, context);
+    },
+  });
   const { render, EMAIL_ASSETS } = await import(
     pathToFileURL(path.join(root, "src/lib/notifications/templates.ts")).href
   );
@@ -17,8 +29,13 @@ const { pathToFileURL } = require("node:url");
     pickupAt: "2030-01-01T01:00:00Z",
     returnAt: "2030-01-02T01:00:00Z",
     rentalCentavos: 70000,
+    depositOption: "cash",
+    depositCentavos: 250000,
+    paymentMethod: "qrph",
+    paymentStatus: "unpaid",
   };
   const entries = [
+    ["booking_requested", "booking-requested.html", "Booking Request Received"],
     ["booking_approved", "booking-confirmed.html", "Booking Confirmed"],
     [
       "verification_approved",
@@ -51,10 +68,10 @@ const { pathToFileURL } = require("node:url");
   }
   fs.writeFileSync(
     path.join(directory, "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KJM email design previews</title><style>body{margin:0;background:#f1e9db;color:#153f40;font:14px Arial,sans-serif}header{padding:22px}h1{font-size:23px;margin:0 0 8px}.panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0 16px 20px}iframe{width:100%;height:1850px;border:0;border-radius:12px}a{color:#086d69}@media(max-width:1000px){.panels{grid-template-columns:1fr}}</style></head><body><header><h1>KJM transactional email previews</h1><p>Fictional data · Local assets · No emails sent · No customer document images</p><nav>${entries.map(([, file, title]) => `<a href="${file}">${title}</a>`).join(" &nbsp; · &nbsp; ")}</nav></header><div class="panels">${entries.map(([, file, title]) => `<iframe title="${title}" src="${file}"></iframe>`).join("")}</div></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KJM email design previews</title><style>body{margin:0;background:#f1e9db;color:#153f40;font:14px Arial,sans-serif}header{padding:22px}h1{font-size:23px;margin:0 0 8px}.panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0 16px 20px}iframe{width:100%;height:1250px;border:0;border-radius:12px}a{color:#086d69}@media(max-width:1000px){.panels{grid-template-columns:1fr}}</style></head><body><header><h1>KJM transactional email previews</h1><p>Fictional data · Local assets · No emails sent · No customer document images</p><nav>${entries.map(([, file, title]) => `<a href="${file}">${title}</a>`).join(" &nbsp; · &nbsp; ")}</nav></header><div class="panels">${entries.map(([, file, title]) => `<iframe title="${title}" src="${file}"></iframe>`).join("")}</div></body></html>`,
   );
   console.log(
-    "Generated three fictional HTML/plain-text previews and an index in docs/notifications/previews. No provider or database calls.",
+    "Generated four fictional HTML/plain-text previews and an index in docs/notifications/previews. No provider or database calls.",
   );
 })().catch(() => {
   console.error("Local preview generation failed.");

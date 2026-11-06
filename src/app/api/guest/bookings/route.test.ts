@@ -90,3 +90,44 @@ it("never exposes database errors", async () => {
   expect(response.status).toBe(503);
   expect(await response.text()).not.toContain("SQL");
 });
+
+it("passes the selected color to the versioned server-only submission RPC", async () => {
+  const response = await POST(
+    request({
+      ...payload,
+      p_selected_color: "White / Black",
+      registration_plate: "PRIVATE",
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(mocks.rpc).toHaveBeenCalledWith(
+    "submit_guest_booking_request_with_color",
+    expect.objectContaining({
+      p_payload: expect.objectContaining({ p_selected_color: "White / Black" }),
+    }),
+  );
+  expect(
+    mocks.rpc.mock.calls[0][1].p_payload.registration_plate,
+  ).toBeUndefined();
+});
+it("asks for another color when the transactional database recheck rejects it", async () => {
+  mocks.rpc.mockResolvedValue({
+    error: { message: "Selected color is unavailable for these dates" },
+    data: null,
+  });
+  const response = await POST(
+    request({ ...payload, p_selected_color: "Green" }),
+  );
+  expect(response.status).toBe(503);
+  expect((await response.json()).error).toContain(
+    "choose another available color",
+  );
+});
+it("fails closed when the color-aware database function has not been applied", async () => {
+  mocks.rpc.mockResolvedValue({
+    error: { code: "PGRST202", message: "function missing" },
+    data: null,
+  });
+  expect((await POST(request())).status).toBe(503);
+  expect(mocks.rpc).toHaveBeenCalledTimes(1);
+});

@@ -107,6 +107,7 @@ export type Database = {
           motorcycle_model_id: string;
           internal_unit_code: string;
           registration_plate: string | null;
+          color: string | null;
           status: string;
           archived_at: string | null;
         };
@@ -115,6 +116,7 @@ export type Database = {
           motorcycle_model_id: string;
           internal_unit_code: string;
           registration_plate?: string | null;
+          color?: string | null;
           status?: string;
           archived_at?: string | null;
           created_at?: string;
@@ -157,6 +159,7 @@ export type Database = {
           rental_pricing?: Json | null;
           id: string;
           booking_reference: string;
+          selected_color: string | null;
           customer_id: string;
           motorcycle_unit_id: string | null;
           motorcycle_model_id: string | null;
@@ -184,6 +187,7 @@ export type Database = {
         Insert: {
           id?: string;
           booking_reference: string;
+          selected_color?: string | null;
           customer_id: string;
           motorcycle_unit_id?: string | null;
           motorcycle_model_id?: string | null;
@@ -209,6 +213,8 @@ export type Database = {
       booking_extras_catalog: {
         Row: Timestamps & {
           id: string;
+          compatible_unit_ids?: string[];
+          compatible_model_ids: string[];
           name: string;
           description: string | null;
           price_php: number;
@@ -222,6 +228,8 @@ export type Database = {
           display_order: number;
         };
         Insert: {
+          compatible_unit_ids?: string[];
+          compatible_model_ids?: string[];
           id?: string;
           name: string;
           description?: string | null;
@@ -545,6 +553,14 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_available_booking_accessories: {
+        Args: { p_model_id: string; p_start_at: string; p_end_at: string };
+        Returns: { id: string }[];
+      };
+      get_motorcycle_color_availability: {
+        Args: { p_model_id: string; p_start_at: string; p_end_at: string };
+        Returns: { color: string; available_count: number }[];
+      };
       get_public_package_rates: {
         Args: { p_model_ids: string[] };
         Returns: {

@@ -3,6 +3,7 @@ import { formatCentavos } from "@/lib/currency";
 import { parseRentalPricing } from "@/lib/rental-pricing";
 export type CheckoutSummaryProps = {
   model: string;
+  selectedColor?: string | null;
   image?: { src: string; alt: string } | null;
   pickup: string;
   returnAt: string;
@@ -36,6 +37,9 @@ export function CheckoutSummary(p: CheckoutSummaryProps) {
             height={280}
             className="h-36 w-full object-contain"
           />
+          <p className="text-muted mt-2 text-center text-xs">
+            Model image · actual unit color may differ
+          </p>
         </div>
       )}
       <div className="space-y-5 p-5">
@@ -48,6 +52,9 @@ export function CheckoutSummary(p: CheckoutSummaryProps) {
           </h2>
         </header>
         <dl className="space-y-2 text-sm">
+          {p.selectedColor && (
+            <Row label="Selected color" value={p.selectedColor} />
+          )}
           <Row label="Pickup" value={p.pickup} />
           <Row label="Return" value={p.returnAt} />
           <Row label="Duration" value={p.duration} />

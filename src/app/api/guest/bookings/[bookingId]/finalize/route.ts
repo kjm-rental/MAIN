@@ -41,8 +41,9 @@ export async function POST(
     if (error || !data?.[0])
       return guestResponse(
         {
-          error:
-            "We couldn’t complete your request. Please check your documents and dates, then try again. Your uploaded documents are preserved.",
+          error: error?.message?.includes("color")
+            ? "Your selected color is no longer available. Contact KJM or reset your dates to choose another color. Your uploaded documents are preserved."
+            : "We couldn’t complete your request. Please check your documents and dates, then try again. Your uploaded documents are preserved.",
         },
         400,
       );

@@ -151,6 +151,7 @@ export const payloadSchema = z
     paymentStatus: z.enum(["paid", "unpaid"]).optional(),
     reference: z.string().min(1).max(100),
     motorcycle: z.string().min(1).max(200),
+    selectedColor: z.string().min(1).max(100).nullable().optional(),
     pickupAt: z.iso.datetime({ offset: true }),
     returnAt: z.iso.datetime({ offset: true }),
     rentalCentavos: z.number().int().nonnegative(),
@@ -279,7 +280,6 @@ export function render(
       : template === "admin_manual_review"
         ? "Verification Requires Review"
         : title;
-  const isVerification = template.startsWith("verification_");
   const isPickup = [
     "pickup_reminder",
     "pickup_instructions",
@@ -297,32 +297,45 @@ export function render(
     template === "admin_manual_review" ||
     template === "payment_pending" ||
     template === "verification_action";
-  const symbol = warning ? "!" : attention ? "&#9679;" : "&#10003;";
+
+  const statusLabel =
+    template === "booking_requested"
+      ? "Awaiting approval"
+      : template === "booking_approved"
+        ? "Confirmed"
+        : template === "verification_action"
+          ? "Action required"
+          : template.includes("reminder")
+            ? "Reminder"
+            : warning
+              ? "Please review"
+              : "Status update";
   const badgeBg = warning ? "#fae9e3" : attention ? "#fff0b5" : "#e2f2e2";
   const badgeInk = warning ? "#8b3827" : attention ? "#71520d" : "#277b37";
-  const subtitle =
-    template === "booking_approved"
-      ? "Thank you for choosing KJM Motorcycle Rental."
-      : isVerification
-        ? "A clear next step for your Cebu ride."
-        : isPickup
-          ? "Your Cebu adventure starts soon."
-          : isAdmin
-            ? "Your KJM operations update."
-            : "Your next update from KJM Motorcycle Rental.";
+  const pricingRows = rentalPricingRows(p.rentalPricing).filter(
+    ([label]) =>
+      ![
+        "Additional time",
+        "Hourly extension rate",
+        "Extension charge",
+      ].includes(label) || (p.rentalPricing?.additionalHours ?? 0) > 0,
+  );
   const rows: [string, string][] = [
     ...(p.customerName
       ? [["Customer", p.customerName] as [string, string]]
       : []),
     ["Booking reference", p.reference],
     ["Motorcycle", p.motorcycle],
+    ...(p.selectedColor
+      ? [["Selected color", p.selectedColor] as [string, string]]
+      : []),
     ["Pickup (Asia/Manila)", manila(p.pickupAt)],
     ["Return (Asia/Manila)", manila(p.returnAt)],
     [
       "Rental duration",
       rentalDuration(p.pickupAt, p.returnAt)?.label ?? "See rental dates",
     ],
-    ...rentalPricingRows(p.rentalPricing),
+    ...pricingRows,
     ["Rental amount", money(p.rentalCentavos)],
     [
       "Payment method",
@@ -388,10 +401,10 @@ export function render(
       : ["View Your Booking", bookingURL];
   const photo = motorcyclePhoto(p.motorcycleImageUrl);
   const miniRow = (label: string, value: string) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #e6ece8"><span style="font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#466261">${e(label)}</span><br><strong style="font-size:14px;line-height:1.7">${e(value)}</strong></td></tr>`;
-  const reference = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0"><tr><td style="padding:14px 16px;background:#eaf4f7;border-radius:10px;overflow-wrap:anywhere"><span style="color:#466261;font-size:11px">Booking reference</span><br><strong style="font-size:16px;line-height:1.8">${e(p.reference)}</strong></td></tr></table>`;
-  const motorcycle = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed"><tr>${photo ? `<td class="kjm-bike" width="40%" valign="middle" style="padding:0 20px 12px 0"><img src="${e(photo)}" alt="${e(p.motorcycle)} — booked model" width="190" style="display:block;width:100%;max-width:190px;height:auto;border:0"></td>` : ""}<td class="kjm-bike" valign="top"><p style="font-size:10px;letter-spacing:1.7px;color:#466261;margin:0 0 6px">${isAdmin ? "MOTORCYCLE" : "YOUR MOTORCYCLE"}</p><h2 style="font-family:${headingFont};font-size:22px;margin:0 0 10px;line-height:1.3;overflow-wrap:anywhere">${e(p.motorcycle)}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${miniRow("Pickup · Asia/Manila", manila(p.pickupAt))}${miniRow("Return · Asia/Manila", manila(p.returnAt))}${miniRow("Rental duration", rows.find(([k]) => k === "Rental duration")![1])}</table></td></tr></table>`;
-  const price = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="padding:16px;background:#f2f5ef;border-radius:12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="kjm-half" valign="middle"><span style="font-size:11px;color:#466261">Rental amount</span><br><strong style="font-size:28px;line-height:1.4;letter-spacing:-.5px">${e(money(p.rentalCentavos))}</strong></td><td class="kjm-half kjm-payment" align="right" valign="middle"><span style="display:inline-block;background:#ffefb2;border-radius:8px;padding:11px;font-size:12px;font-weight:bold;color:#4c3b14">${e(p.paymentMethod === "qrph" ? `QRPh · ${p.paymentStatus ?? "unpaid"}` : p.delivery ? "Cash on Delivery" : "Cash on Pickup")}</span></td></tr></table></td></tr></table><p style="font-size:13px;line-height:1.7;margin:17px 0 0"><strong>Refundable security deposit</strong><br>${e(deposit)}</p>`;
+    `<tr><td class="kjm-label" width="38%" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid #e6ece8;color:#627574;font-size:12px;line-height:1.6">${e(label)}</td><td class="kjm-value" valign="top" style="padding:10px 0;border-bottom:1px solid #e6ece8;font-size:13px;line-height:1.6;font-weight:600;overflow-wrap:anywhere">${e(value)}</td></tr>`;
+  const reference = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:18px 0"><tr><td style="padding:11px 14px;background:#f3f6f5;border-radius:10px;overflow-wrap:anywhere"><span style="color:#466261;font-size:11px">Booking reference</span><br><strong style="font-size:13px;line-height:1.8">${e(p.reference)}</strong></td></tr></table>`;
+  const motorcycle = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed"><tr>${photo ? `<td class="kjm-bike" width="40%" valign="middle" style="padding:0 20px 12px 0"><img src="${e(photo)}" alt="${e(p.motorcycle)} — booked model" width="190" style="display:block;width:100%;max-width:190px;height:auto;border:0"></td>` : ""}<td class="kjm-bike" valign="top"><p style="font-size:10px;letter-spacing:1.7px;color:#466261;margin:0 0 6px">${isAdmin ? "MOTORCYCLE" : "YOUR MOTORCYCLE"}</p><h2 style="font-family:${headingFont};font-size:19px;margin:0 0 8px;line-height:1.3;overflow-wrap:anywhere">${e(p.motorcycle)}</h2><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${p.selectedColor ? miniRow("Selected color", p.selectedColor) : ""}${miniRow("Pickup", manila(p.pickupAt))}${miniRow("Return", manila(p.returnAt))}${miniRow("Rental duration", rows.find(([k]) => k === "Rental duration")![1])}</table><p style="font-size:11px;color:#627574;margin:8px 0 0">All times are Philippine time (GMT+8).</p></td></tr></table>`;
+  const price = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="padding:16px;background:#f2f5ef;border-radius:12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="kjm-half" valign="middle"><span style="font-size:11px;color:#466261">Rental amount</span><br><strong style="font-size:25px;line-height:1.4;letter-spacing:-.5px">${e(money(p.rentalCentavos))}</strong></td><td class="kjm-half kjm-payment" align="right" valign="middle"><span style="display:inline-block;background:#ffefb2;border-radius:6px;padding:8px;font-size:12px;font-weight:bold;color:#4c3b14">${e(p.paymentMethod === "qrph" ? `QRPh · ${p.paymentStatus ?? "unpaid"}` : p.delivery ? "Cash on Delivery" : "Cash on Pickup")}</span></td></tr></table></td></tr></table><p style="font-size:13px;line-height:1.7;margin:17px 0 0"><strong>Refundable security deposit</strong><br>${e(deposit)}</p>`;
   let content = "";
   let additionalText = "";
   if (template === "verification_approved") {
@@ -427,9 +440,7 @@ export function render(
       motorcycle +
       price +
       (p.rentalPricing
-        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rentalPricingRows(
-            p.rentalPricing,
-          )
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${pricingRows
             .map(([k, v]) => miniRow(k, v))
             .join("")}</table>`
         : "");
@@ -469,7 +480,7 @@ export function render(
       .map(([key, value]) => miniRow(key, value))
       .join("")}</table>`;
   const text = `${heading}\n${heading === title ? "" : title + "\n"}\n${p.customerName ? "Hi " + p.customerName + ",\n\n" : ""}${intro}\n\n${rows.map(([k, v]) => `${k}: ${v}`).join("\n")}${additionalText}\n\n${action[0]}: ${action[1]}\nContact: ${BRAND.reply}\nLapu-Lapu City, Cebu, Philippines\n${BRAND.site}`;
-  const html = `<!doctype html><html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>${e(title)}</title><!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]--><style>@media only screen and (max-width:480px){.kjm-shell{padding:10px!important}.kjm-content{padding:20px!important}.kjm-hero{padding:30px 22px!important}.kjm-title{font-size:32px!important}.kjm-half,.kjm-bike{display:block!important;width:100%!important;box-sizing:border-box!important}.kjm-payment{text-align:left!important;padding-top:10px!important}.kjm-location{display:none!important}}</style></head><body style="margin:0;padding:0;background:#f1e9db;color:#153f40;font-family:${bodyFont};-webkit-text-size-adjust:100%"><div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${e(title)} · ${e(p.reference)} · ${e(intro)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed"><tr><td class="kjm-shell" align="center" style="padding:28px 14px"><!--[if mso]><table role="presentation" width="600" align="center"><tr><td><![endif]--><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;table-layout:fixed;overflow-wrap:break-word;background:#ffffff;border-radius:16px"><tr><td style="padding:16px 24px;background:#ffffff;border-radius:16px 16px 0 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td width="90"><a href="${BRAND.site}"><img src="${EMAIL_ASSETS.logo}" alt="KJM Motorcycle Rental" width="78" style="display:block;width:78px;height:auto;border:0"></a></td><td class="kjm-location" align="center" style="font-size:11px;line-height:1.5;color:#153f40">Lapu-Lapu City<br>Cebu, Philippines</td><td align="right" style="font-size:12px"><a href="${BRAND.site}" style="color:#153f40;text-decoration:none;font-weight:bold">kjmride.com</a></td></tr></table></td></tr><tr><td background="${EMAIL_ASSETS.scenic}" bgcolor="#153f40" style="background-color:#153f40;background-image:linear-gradient(90deg,rgba(10,43,44,.94),rgba(10,43,44,.35)),url('${EMAIL_ASSETS.scenic}');background-position:center;background-size:cover"><!--[if mso]><v:rect style="width:600px;height:280px" stroked="false"><v:fill color="#153f40"/><v:textbox inset="0,0,0,0" style="mso-fit-shape-to-text:true"><![endif]--><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="kjm-hero" style="padding:34px 30px;height:160px;color:#ffffff"><h1 class="kjm-title" style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:39px;font-weight:bold;line-height:1.12;letter-spacing:-1px;margin:0 0 16px;max-width:370px;color:#ffffff">${e(heading)}</h1><p style="font-size:14px;line-height:1.6;color:#ffffff;margin:0;max-width:320px">${e(subtitle)}</p></td></tr></table><!--[if mso]></v:textbox></v:rect><![endif]--></td></tr><tr><td class="kjm-content" style="padding:26px;background:#ffffff;border-radius:14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed"><tr><td width="48" valign="top" style="padding:2px 14px 0 0"><span aria-hidden="true" style="display:inline-block;width:42px;line-height:42px;text-align:center;border-radius:50%;background:${badgeBg};color:${badgeInk};font-size:27px;font-weight:bold">${symbol}</span></td><td valign="top"><h2 style="font-family:${headingFont};font-size:23px;line-height:1.3;margin:0 0 7px;color:#153f40">${e(title)}</h2>${p.customerName ? `<p style="font-size:14px;margin:0 0 6px">Hi ${e(p.customerName)},</p>` : ""}<p style="font-size:13px;line-height:1.7;color:#466261;margin:0">${e(intro)}</p></td></tr></table>${reference}${content}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td align="center" bgcolor="#153f40" style="border-radius:10px;mso-padding-alt:16px 12px"><a href="${e(action[1])}" style="display:block;padding:16px 12px;font-family:${bodyFont};font-size:14px;font-weight:bold;line-height:20px;text-align:center;text-decoration:none;color:#ffffff;border-radius:10px">${e(action[0])} &nbsp; &#8594;</a></td></tr></table><p style="font-size:11px;line-height:1.7;color:#466261;margin:14px 0 0">Questions about your ${isAdmin ? "operations update" : "rental"}? Contact <a href="mailto:${BRAND.reply}" style="color:#086d69">${BRAND.reply}</a>.</p></td></tr><tr><td align="center" style="padding:22px 20px 16px;background:#edf5f4;border-top:1px solid #d8e7e4"><p style="font-family:${headingFont};font-weight:bold;font-size:15px;letter-spacing:.2px;color:#153f40;margin:0 0 9px">KJM Motorcycle Rental</p><p style="font-size:11px;line-height:1.8;color:#466261;margin:0">Motorcycle rentals · Lapu-Lapu City, Cebu<br><a href="${BRAND.site}" style="color:#086d69;text-decoration:none">kjmride.com</a> &nbsp; · &nbsp; <a href="mailto:${BRAND.reply}" style="color:#086d69;text-decoration:none">Contact KJM</a></p><p style="font-size:9px;color:#466261;margin:12px 0 0">Cebu-inspired illustration · Decorative scenery, not your booked motorcycle</p></td></tr><tr><td height="64" background="${EMAIL_ASSETS.scenic}" bgcolor="#153f40" style="height:64px;background-color:#153f40;background-image:url('${EMAIL_ASSETS.scenic}');background-position:center 42%;background-size:cover;border-radius:0 0 16px 16px;font-size:1px;line-height:1px">&nbsp;</td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr></table></body></html>`;
+  const html = `<!doctype html><html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>${e(title)}</title><!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]--><style>@media only screen and (max-width:480px){.kjm-shell{padding:10px!important}.kjm-content{padding:20px!important}.kjm-half,.kjm-bike{display:block!important;width:100%!important;box-sizing:border-box!important}.kjm-payment{text-align:left!important;padding-top:10px!important}.kjm-label{width:34%!important}}</style></head><body style="margin:0;padding:0;background:#f4f6f5;color:#153f40;font-family:${bodyFont};-webkit-text-size-adjust:100%"><div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${e(title)} · ${e(p.reference)} · ${e(intro)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed"><tr><td class="kjm-shell" align="center" style="padding:24px 12px"><!--[if mso]><table role="presentation" width="600" align="center"><tr><td><![endif]--><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;table-layout:fixed;overflow-wrap:break-word;background:#ffffff;border-radius:16px"><tr><td style="padding:18px 26px;border-top:4px solid #153f40;border-bottom:1px solid #e6ece8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td width="58"><a href="${BRAND.site}"><img src="${EMAIL_ASSETS.logo}" alt="KJM" width="46" style="display:block;width:46px;height:auto;border:0"></a></td><td style="font-size:14px;font-weight:bold;color:#153f40">KJM Motorcycle Rental<br><span style="font-size:11px;font-weight:normal;color:#627574">Lapu-Lapu City, Cebu</span></td><td align="right" style="font-size:11px"><a href="${BRAND.site}" style="color:#086d69;text-decoration:none">kjmride.com</a></td></tr></table></td></tr><tr><td class="kjm-content" style="padding:26px;background:#ffffff"><p style="margin:0 0 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#627574">${isAdmin ? "Operations update" : "Your rental update"}</p><span style="display:inline-block;padding:5px 9px;border-radius:5px;background:${badgeBg};color:${badgeInk};font-size:11px;font-weight:bold">${e(statusLabel)}</span><h1 style="font-family:${headingFont};font-size:26px;line-height:1.25;letter-spacing:-.5px;margin:12px 0;color:#153f40">${e(heading)}</h1>${p.customerName ? `<p style="font-size:14px;margin:0 0 7px">Hi ${e(p.customerName)},</p>` : ""}<p style="font-size:14px;line-height:1.7;color:#466261;margin:0">${e(intro)}</p>${reference}${content}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td align="center" bgcolor="#153f40" style="border-radius:10px;mso-padding-alt:16px 12px"><a href="${e(action[1])}" style="display:block;padding:16px 12px;font-family:${bodyFont};font-size:14px;font-weight:bold;line-height:20px;text-align:center;text-decoration:none;color:#ffffff;border-radius:10px">${e(action[0])} &nbsp; &#8594;</a></td></tr></table><p style="font-size:11px;line-height:1.7;color:#466261;margin:14px 0 0">Questions about your ${isAdmin ? "operations update" : "rental"}? Contact <a href="mailto:${BRAND.reply}" style="color:#086d69">${BRAND.reply}</a>.</p></td></tr><tr><td align="center" style="padding:16px 24px;border-top:1px solid #e6ece8"><p style="font-size:11px;line-height:1.7;color:#627574;margin:0">KJM Motorcycle Rental · Lapu-Lapu City, Cebu<br><a href="${BRAND.site}" style="color:#086d69;text-decoration:none">kjmride.com</a></p></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr></table></body></html>`;
   return {
     subject: `${title} — ${p.reference.replace(/[\r\n]/g, " ")}`,
     html,

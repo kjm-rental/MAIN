@@ -102,6 +102,9 @@ export default async function BookingStatusPage({
   const pending = ["pending", "submitted"].includes(booking.status);
   const rows = [
     ["Motorcycle", model?.display_name ?? "—"],
+    ...(booking.selected_color
+      ? [["Selected color", booking.selected_color]]
+      : []),
     ["Pickup", formatManila(booking.start_at)],
     ["Return", formatManila(booking.end_at)],
     [

@@ -14,25 +14,28 @@ export function MotorcycleVisual({
   media,
   compact = false,
 }: MotorcycleVisualProps) {
+  const sizes = compact
+    ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+    : "(max-width: 1024px) 100vw, 55vw";
   const background = compact
     ? "bg-[linear-gradient(180deg,#F7F3EB_0%,#EEF6F3_100%)]"
     : "bg-sand";
   if (media) {
     return (
       <figure
-        className={`${background} relative isolate overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-[16/11]"}`}
+        className={`relative isolate overflow-hidden ${compact ? "aspect-[4/3]" : ""}`}
       >
         <Image
           src={media.src}
           alt={media.alt}
-          fill
+          fill={compact}
+          width={compact ? undefined : 1200}
+          height={compact ? undefined : 900}
           quality={90}
-          sizes={
-            compact
-              ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              : "(max-width: 1024px) 100vw, 55vw"
+          sizes={sizes}
+          className={
+            compact ? "object-cover object-center" : "block h-auto w-full"
           }
-          className="object-contain transition-transform duration-500 group-hover:scale-[1.02]"
         />
       </figure>
     );

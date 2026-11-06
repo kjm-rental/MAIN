@@ -60,14 +60,15 @@ export async function POST(request: Request) {
     const { captchaToken: _token, ...payload } = parsed.data;
     void _token;
     const { data, error } = await guestDb().rpc(
-      "submit_guest_booking_request",
+      "submit_guest_booking_request_with_color",
       { p_payload: payload, p_access_hash: await guestHash(true) },
     );
     if (error || !data?.[0])
       return guestResponse(
         {
-          error:
-            "We couldn’t save your request. Please check availability and try again. If it continues, contact KJM.",
+          error: error?.message?.includes("color")
+            ? "Your selected color is unavailable. Return to dates and choose another available color."
+            : "We couldn’t save your request. Please check availability and try again. If it continues, contact KJM.",
         },
         503,
       );

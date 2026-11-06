@@ -1,4 +1,13 @@
 "use client";
+import {
+  extraFitsMotorcycle,
+  extraQuantityLimit,
+  isTopBox,
+} from "@/lib/booking-extras";
+import {
+  MotorcycleColorOptions,
+  type MotorcycleColorOption,
+} from "@/components/website/motorcycle-color-options";
 import { customerFieldErrors } from "@/lib/guest-checkout/validation";
 import { rentalDuration } from "@/lib/rental-duration";
 import { DeliveryChoice } from "@/components/website/delivery-choice";
@@ -38,6 +47,12 @@ import {
   LoaderCircle,
   Plus,
   ShieldCheck,
+  UserRound,
+  Mail,
+  Phone,
+  Globe2,
+  MapPin,
+  Check,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { validateRentalPeriod } from "@/lib/booking";
@@ -98,6 +113,8 @@ const initial: Form = {
   entryDate: "",
 };
 type BookingExtra = {
+  compatible_model_ids?: string[];
+  compatible_unit_ids?: string[];
   id: string;
   name: string;
   description: string | null;
@@ -193,6 +210,12 @@ export function BookingCheckout({
   const documentDetails = useRef<HTMLDetailsElement>(null);
   const stepBody = useRef<HTMLDivElement>(null);
   const [motorcycle, setMotorcycle] = useState(initialMotorcycle);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [colorResult, setColorResult] = useState<{
+    key: string;
+    options: MotorcycleColorOption[];
+    error: string;
+  } | null>(null);
   const [step, setStep] = useState(() => initialBookingStep(preselected)),
     [form, setForm] = useState(initial),
     [files, setFiles] = useState<Record<string, File | undefined>>({}),
@@ -237,7 +260,8 @@ export function BookingCheckout({
   const [onlineMethods, setOnlineMethods] = useState<("card" | "qrph")[]>([]);
   const [onlineEnabled, setOnlineEnabled] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
-  const [inlinePayment, setInlinePayment] = useState<InlinePaymentResult | null>(null);
+  const [inlinePayment, setInlinePayment] =
+    useState<InlinePaymentResult | null>(null);
   const onlinePaymentKey = useRef(crypto.randomUUID());
   useEffect(() => {
     if (!customerOnlinePaymentsEnabled) return;
@@ -312,15 +336,124 @@ export function BookingCheckout({
   useEffect(() => {
     stepBody.current?.scrollTo(0, 0);
   }, [step]);
+  const colorKey = dates
+    ? `${motorcycle.id}:${dates.startAt}:${dates.endAt}`
+    : "";
+  const currentColors = colorResult?.key === colorKey ? colorResult : null;
+  useEffect(() => {
+    if (!dates || !motorcycle.id || draftBookingId || bookingId) return;
+    let cancelled = false;
+    const key = `${motorcycle.id}:${dates.startAt}:${dates.endAt}`;
+    void Promise.resolve(
+      createClient().rpc("get_motorcycle_color_availability", {
+        p_model_id: motorcycle.id,
+        p_start_at: dates.startAt,
+        p_end_at: dates.endAt,
+      }),
+    )
+      .then(({ data, error: colorError }) => {
+        if (cancelled) return;
+        const options = data ?? [];
+        setColorResult({
+          key,
+          options,
+          error: colorError
+            ? "Color availability is temporarily unavailable. Please refresh or contact KJM."
+            : "",
+        });
+        if (!colorError)
+          setSelectedColor((current) => {
+            if (
+              current &&
+              !options.some((o) => o.color === current && o.available_count > 0)
+            )
+              return "";
+            return current;
+          });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setColorResult({
+            key,
+            options: [],
+            error:
+              "Color availability is temporarily unavailable. Please refresh or contact KJM.",
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dates, motorcycle.id, draftBookingId, bookingId]);
+  async function recheckColor() {
+    if (!dates || !motorcycle.id) throw Error("Choose rental dates first.");
+    const result = await createClient().rpc(
+      "get_motorcycle_color_availability",
+      {
+        p_model_id: motorcycle.id,
+        p_start_at: dates.startAt,
+        p_end_at: dates.endAt,
+      },
+    );
+    if (result.error)
+      throw Error(
+        "Color availability is temporarily unavailable. Please refresh or contact KJM.",
+      );
+    setColorResult({ key: colorKey, options: result.data ?? [], error: "" });
+    if (
+      result.data?.length &&
+      !result.data.some(
+        (o) => o.color === selectedColor && o.available_count > 0,
+      )
+    )
+      throw Error(
+        "Choose an available motorcycle color for these dates. Your previous choice may no longer be available.",
+      );
+  }
   const durationLabel = dates
     ? (rentalDuration(dates.startAt, dates.endAt)?.label ?? "Choose your dates")
     : "Choose your dates";
-  const selectedExtras = extras.filter(
+  const [readyAccessoryIds, setReadyAccessoryIds] = useState<{
+    key: string;
+    ids: string[];
+  }>({ key: "", ids: [] });
+  const accessoryKey = dates
+    ? `${motorcycle.id}:${dates.startAt}:${dates.endAt}:${selectedColor ?? ""}`
+    : "";
+  useEffect(() => {
+    if (!dates || !motorcycle.id) return;
+    let cancelled = false;
+    const key = `${motorcycle.id}:${dates.startAt}:${dates.endAt}:${selectedColor ?? ""}`;
+    void createClient()
+      .rpc("get_available_booking_accessories", {
+        p_model_id: motorcycle.id,
+        p_selected_color: selectedColor || null,
+        p_start_at: dates.startAt,
+        p_end_at: dates.endAt,
+      })
+      .then(({ data, error }) => {
+        if (!cancelled)
+          setReadyAccessoryIds({
+            key,
+            ids: error ? [] : (data ?? []).map((item) => item.id),
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [motorcycle.id, dates, selectedColor]);
+  const availableExtras = extras.filter(
+    (extra) =>
+      extraFitsMotorcycle(extra, motorcycle.id ?? undefined) &&
+      (!(isTopBox(extra.name) || extra.compatible_unit_ids?.length) ||
+        (readyAccessoryIds.key === accessoryKey &&
+          readyAccessoryIds.ids.includes(extra.id))),
+  );
+  const selectedExtras = availableExtras.filter(
     (extra) => (extraQuantities[extra.id] ?? 0) > 0,
   );
   const extraItems = selectedExtras.map((extra) => ({
     id: extra.id,
-    quantity: extraQuantities[extra.id],
+    quantity: Math.min(extraQuantities[extra.id], extraQuantityLimit(extra)),
   }));
   const update = (key: keyof Form, value: string) => {
     if (key === "pickup" || key === "returnAt") setQuote(null);
@@ -397,6 +530,7 @@ export function BookingCheckout({
           "Online booking is not open yet. Please contact KJM to plan your ride.",
         );
       if (step === 1) {
+        await recheckColor();
         const period = validateRentalPeriod(form.pickup, form.returnAt);
         if (!motorcycle.id)
           throw new Error("Motorcycle catalog identity is missing.");
@@ -562,6 +696,7 @@ export function BookingCheckout({
         throw Error(
           "Review the delivery and collection quote before submitting.",
         );
+      if (!draftBookingId) await recheckColor();
       const response = await fetch("/api/guest/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -573,6 +708,7 @@ export function BookingCheckout({
           p_payment_method: paymentMethod === "online" ? "qrph" : "cash",
           p_idempotency_key: idempotencyKey.current,
           p_model_id: motorcycle.id,
+          p_selected_color: selectedColor || null,
           p_start_at: dates.startAt,
           p_end_at: dates.endAt,
           p_extra_items: extraItems,
@@ -600,7 +736,8 @@ export function BookingCheckout({
       if (!response.ok) {
         if (booking.fields) setFieldErrors(booking.fields);
         throw new Error(
-          "We couldn’t save your request. Please check your details, complete the security check again, and retry.",
+          booking.error ||
+            "We couldn’t save your request. Please check your details, complete the security check again, and retry.",
         );
       }
       setDraftBookingId(booking.booking_id);
@@ -688,6 +825,7 @@ export function BookingCheckout({
   }
   const checkoutSummary = (
     <CheckoutSummary
+      selectedColor={selectedColor || null}
       model={motorcycle.model}
       image={motorcycle.primaryImage}
       pickup={form.pickup ? formatBookingDate(form.pickup) : "Choose pickup"}
@@ -767,6 +905,8 @@ export function BookingCheckout({
                         disabled={busy || Boolean(draftBookingId)}
                         onClick={() => {
                           setMotorcycle(ride);
+                          setExtraQuantities({});
+                          setSelectedColor("");
                           window.history.replaceState(
                             null,
                             "",
@@ -853,6 +993,19 @@ export function BookingCheckout({
                   onReturn={(value) => update("returnAt", value)}
                 />
                 {dates && (
+                  <MotorcycleColorOptions
+                    options={currentColors?.options ?? []}
+                    value={selectedColor}
+                    onChange={(color) => {
+                      setSelectedColor(color);
+                      setError("");
+                    }}
+                    loading={!currentColors}
+                    error={currentColors?.error ?? ""}
+                    disabled={busy || Boolean(draftBookingId)}
+                  />
+                )}
+                {dates && (
                   <div className="bg-ocean/5 border-ocean/15 mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 text-sm">
                     <span className="font-bold">{durationLabel}</span>
                     <span className="text-ocean font-bold">
@@ -879,16 +1032,19 @@ export function BookingCheckout({
                 </p>
               </div>
             )}
-            {step === 1 && extras.length > 0 && (
+            {step === 1 && availableExtras.length > 0 && (
               <div className="border-deep-teal/10 mt-8 border-t pt-8">
                 <Heading
                   title="A few finishing touches."
-                  text="Choose quantities or continue without extras. Per-day items are charged for each server-calculated rental day."
+                  text="Choose up to 2 helmets and 2 raincoats. Top boxes appear only when a compatible, installation-ready unit is available for your dates. Prices below are per item."
                 />
-                {extras.length ? (
+                {availableExtras.length ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {extras.map((extra) => {
-                      const quantity = extraQuantities[extra.id] ?? 0;
+                    {availableExtras.map((extra) => {
+                      const quantity = Math.min(
+                        extraQuantities[extra.id] ?? 0,
+                        extraQuantityLimit(extra),
+                      );
                       const selected = quantity > 0;
                       return (
                         <article
@@ -921,8 +1077,11 @@ export function BookingCheckout({
                             <span className="text-ocean mt-3 block text-sm font-bold">
                               +{formatPhp(extra.price_php)}
                               {extra.pricing_model === "per_day"
-                                ? " / rental day"
-                                : " / rental"}
+                                ? " / item / rental day"
+                                : " / item / rental"}
+                              <span className="text-muted mt-1 block text-xs font-normal">
+                                Up to {extraQuantityLimit(extra)} per booking
+                              </span>
                             </span>
                           </span>
                           <span className="bg-sand flex shrink-0 items-center gap-2 rounded-full p-1">
@@ -946,17 +1105,14 @@ export function BookingCheckout({
                             <button
                               type="button"
                               aria-label={`Add one ${extra.name}`}
-                              disabled={
-                                quantity >=
-                                Math.min(
-                                  extra.max_per_booking,
-                                  extra.total_quantity,
-                                )
-                              }
+                              disabled={quantity >= extraQuantityLimit(extra)}
                               onClick={() =>
                                 setExtraQuantities((current) => ({
                                   ...current,
-                                  [extra.id]: quantity + 1,
+                                  [extra.id]: Math.min(
+                                    quantity + 1,
+                                    extraQuantityLimit(extra),
+                                  ),
                                 }))
                               }
                               className="bg-ocean disabled:bg-sand disabled:text-muted flex size-11 items-center justify-center rounded-full text-white disabled:opacity-100"
@@ -994,11 +1150,19 @@ export function BookingCheckout({
               </div>
             )}
             {step === 2 && (
-              <div>
-                <Heading
-                  title="Your Details"
-                  text="Enter your details as they appear on your ID."
-                />
+              <div className="rider-details">
+                <header className="rider-details-header">
+                  <span className="rider-details-icon">
+                    <UserRound size={24} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="rider-details-eyebrow">
+                      A little introduction
+                    </p>
+                    <h2>Let’s get to know you.</h2>
+                    <p>Just the essentials to get your island ride ready.</p>
+                  </div>
+                </header>
                 {serviceConfig && (
                   <DeliveryChoice
                     config={serviceConfig}
@@ -1009,66 +1173,168 @@ export function BookingCheckout({
                     }}
                   />
                 )}
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Input
-                    label="Full legal name"
-                    error={fieldErrors.fullName}
-                    value={form.fullName}
-                    onChange={(v) => update("fullName", v)}
-                  />
-                  <Input
-                    label="Email"
-                    type="email"
-                    error={fieldErrors.email}
-                    value={form.email}
-                    onChange={(v) => update("email", v)}
-                  />
-
-                  <Input
-                    label="Mobile number"
-                    type="tel"
-                    error={fieldErrors.phone}
-                    value={form.phone}
-                    onChange={(v) => update("phone", v)}
-                  />
-                  <Input
-                    label="Country of residence"
-                    error={fieldErrors.country}
-                    value={form.country}
-                    onChange={(v) => update("country", v)}
-                  />
-                  <Field label="Customer type">
-                    <select
-                      value={form.customerType}
-                      onChange={(e) =>
-                        setForm((v) => ({
-                          ...v,
-                          customerType: e.target.value as Form["customerType"],
-                          licenseCountry:
-                            e.target.value === "philippine_resident"
-                              ? "Philippines"
-                              : "",
-                        }))
-                      }
-                      className="field"
-                    >
-                      <option value="philippine_resident">
-                        Philippine resident
-                      </option>
-                      <option value="international_visitor">
-                        International visitor
-                      </option>
-                    </select>
-                  </Field>
+                <section className="rider-details-group">
+                  <div className="rider-details-group-title">
+                    <h3>Your information</h3>
+                    <span>All fields required</span>
+                  </div>
+                  <div className="rider-details-grid">
+                    <Input
+                      label="Full legal name"
+                      placeholder="Name as shown on your ID"
+                      autoComplete="name"
+                      icon={<UserRound size={17} />}
+                      error={fieldErrors.fullName}
+                      value={form.fullName}
+                      onChange={(v) => update("fullName", v)}
+                    />
+                    <Input
+                      label="Country of residence"
+                      placeholder="e.g. Philippines"
+                      autoComplete="country-name"
+                      icon={<Globe2 size={17} />}
+                      error={fieldErrors.country}
+                      value={form.country}
+                      onChange={(v) => update("country", v)}
+                    />
+                  </div>
+                  <p className="rider-details-hint">
+                    Use the same name as your identification for a smoother
+                    document review.
+                  </p>
+                </section>
+                <section className="rider-details-group">
+                  <div className="rider-details-group-title">
+                    <h3>How can we reach you?</h3>
+                  </div>
+                  <div className="rider-details-grid">
+                    <Input
+                      label="Email address"
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      icon={<Mail size={17} />}
+                      error={fieldErrors.email}
+                      value={form.email}
+                      onChange={(v) => update("email", v)}
+                    />
+                    <Input
+                      label="Mobile number"
+                      type="tel"
+                      placeholder="+63 9XX XXX XXXX"
+                      autoComplete="tel"
+                      icon={<Phone size={17} />}
+                      error={fieldErrors.phone}
+                      value={form.phone}
+                      onChange={(v) => update("phone", v)}
+                    />
+                  </div>
+                  <p className="rider-details-hint">
+                    Include your country code so our team can reach you about
+                    your booking.
+                  </p>
+                </section>
+                <fieldset className="rider-details-group rider-type-group">
+                  <legend>Where are you visiting from?</legend>
+                  <div className="rider-type-grid">
+                    {(
+                      [
+                        {
+                          value: "philippine_resident",
+                          title: "Philippine resident",
+                          description: "I live in the Philippines",
+                          icon: MapPin,
+                        },
+                        {
+                          value: "international_visitor",
+                          title: "International visitor",
+                          description: "I’m visiting from overseas",
+                          icon: Globe2,
+                        },
+                      ] as const
+                    ).map((choice) => (
+                      <label
+                        key={choice.value}
+                        className={`rider-type-card ${form.customerType === choice.value ? "is-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="renter-type"
+                          value={choice.value}
+                          checked={form.customerType === choice.value}
+                          onChange={() =>
+                            setForm((v) => ({
+                              ...v,
+                              customerType: choice.value,
+                              licenseCountry:
+                                choice.value === "philippine_resident"
+                                  ? "Philippines"
+                                  : "",
+                            }))
+                          }
+                        />
+                        <choice.icon size={20} aria-hidden="true" />
+                        <span>
+                          <strong>{choice.title}</strong>
+                          <small>{choice.description}</small>
+                        </span>
+                        <span className="rider-type-check" aria-hidden="true">
+                          {form.customerType === choice.value && (
+                            <Check size={12} />
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {fieldErrors.customerType && (
+                    <p role="alert" className="text-sm text-red-700">
+                      {fieldErrors.customerType}
+                    </p>
+                  )}
+                </fieldset>
+                <div className="rider-details-note">
+                  <ShieldCheck size={18} aria-hidden="true" />
+                  <p>
+                    Your details help us arrange your rental and review your
+                    documents. You’ll upload your ID in the next step.
+                  </p>
                 </div>
               </div>
             )}
             {step === 3 && (
               <div className="minimal-document-step">
-                <Heading
-                  title="Upload Documents"
-                  text="Your documents are securely stored and reviewed by KJM before motorcycle pickup."
-                />
+                <header className="rider-details-header">
+                  <span className="rider-details-icon">
+                    <ShieldCheck size={25} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="rider-details-eyebrow">
+                      One step closer to your ride
+                    </p>
+                    <h2>Your documents, ready to go.</h2>
+                    <p>
+                      Upload clear copies. KJM reviews your ID and driving
+                      eligibility before pickup.
+                    </p>
+                  </div>
+                </header>
+                <div className="document-checklist-bar">
+                  <span>
+                    <FileCheck2 size={16} aria-hidden="true" /> Your document
+                    checklist
+                  </span>
+                  <strong>
+                    {
+                      [
+                        form.customerType === "international_visitor"
+                          ? files.passport
+                          : files.government_id,
+                        files.drivers_license_front,
+                      ].filter(Boolean).length
+                    }{" "}
+                    of 2 required files selected
+                  </strong>
+                </div>
                 <div className="minimal-upload-grid">
                   <Upload
                     required
@@ -1122,10 +1388,19 @@ export function BookingCheckout({
                 <details
                   ref={documentDetails}
                   className="minimal-document-info"
+                  open
                 >
                   <summary>
-                    Document information <span>Required</span>
+                    <span className="document-info-title">
+                      <FileCheck2 size={18} aria-hidden="true" /> Details from
+                      your documents
+                    </span>
+                    <span>Required</span>
                   </summary>
+                  <p className="document-info-hint">
+                    Copy these details exactly as printed on your ID and
+                    license.
+                  </p>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Input
                       label="Name on identity document"
@@ -1192,11 +1467,35 @@ export function BookingCheckout({
               </div>
             )}
             {step === 4 && !(bookingId && paymentMethod === "online") && (
-              <div>
-                <Heading
-                  title="Review & Confirm"
-                  text="Check your reservation before confirming."
-                />
+              <div className="reservation-review">
+                <header className="rider-details-header">
+                  <span className="rider-details-icon">
+                    <FileCheck2 size={25} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="rider-details-eyebrow">The final check</p>
+                    <h2>Your adventure, almost ready.</h2>
+                    <p>Review your details before sending your reservation.</p>
+                  </div>
+                </header>
+                <div className="review-total-banner">
+                  <div>
+                    <span>Rental & services</span>
+                    <strong>{formatCentavos(quotedPayable)}</strong>
+                  </div>
+                  <div>
+                    <span>Refundable cash deposit</span>
+                    <strong>
+                      {quote?.deposit_required_centavos == null
+                        ? "Pending quote"
+                        : formatCentavos(quote.deposit_required_centavos)}
+                    </strong>
+                  </div>
+                  <p>
+                    <ShieldCheck size={15} aria-hidden="true" /> Deposit is
+                    collected separately at handover.
+                  </p>
+                </div>
                 <PaymentMethodChoice
                   value={paymentMethod}
                   methods={onlineMethods}
@@ -1209,10 +1508,18 @@ export function BookingCheckout({
                   disabled={busy}
                   onChange={setPaymentMethod}
                 />
-                <section className="border-deep-teal/10 rounded-xl border bg-white p-4 text-sm">
-                  <h3 className="text-deep-teal font-bold">
-                    Your booking details
-                  </h3>
+                <section className="review-reservation-card">
+                  <div className="review-card-heading">
+                    <UserRound size={18} aria-hidden="true" />
+                    <h3>Your booking details</h3>
+                    <button type="button" onClick={() => setStep(2)}>
+                      Edit details
+                    </button>
+                  </div>
+                  <div className="review-ride-line">
+                    <span>{motorcycle.model}</span>
+                    {selectedColor && <strong>{selectedColor}</strong>}
+                  </div>
                   <p className="text-muted mt-2">
                     {form.fullName} · {form.email}
                   </p>
@@ -1266,25 +1573,32 @@ export function BookingCheckout({
                   )}
                 </section>
                 <div className="checkout-mobile-summary">{checkoutSummary}</div>
-                <TermsAcceptance
-                  acceptedVersion={acceptedTermsVersion}
-                  onChange={setAcceptedTermsVersion}
-                />
-                <label className="text-muted mt-5 flex gap-3 text-sm leading-6">
-                  <input
-                    required
-                    type="checkbox"
-                    checked={consented}
-                    onChange={(event) => setConsented(event.target.checked)}
-                    className="accent-ocean mt-1"
+                <section className="review-consent">
+                  <div className="review-card-heading">
+                    <ShieldCheck size={18} aria-hidden="true" />
+                    <h3>Before you confirm</h3>
+                  </div>
+                  <TermsAcceptance
+                    acceptedVersion={acceptedTermsVersion}
+                    onChange={setAcceptedTermsVersion}
                   />
-                  I confirm the information is accurate, consent to verification
-                  processing, and understand KJM staff must approve this
-                  request.
-                </label>
-                <p className="text-muted mt-4 text-xs leading-5">
-                  {settings?.privacy_notice}
-                </p>
+                  <label className="text-muted mt-5 flex gap-3 text-sm leading-6">
+                    <input
+                      required
+                      type="checkbox"
+                      checked={consented}
+                      onChange={(event) => setConsented(event.target.checked)}
+                      className="accent-ocean mt-1"
+                    />
+                    I confirm the information is accurate, consent to
+                    verification processing, and understand KJM staff must
+                    approve this request.
+                  </label>
+                  <details className="review-privacy">
+                    <summary>How we use your information</summary>
+                    <p>{settings?.privacy_notice}</p>
+                  </details>
+                </section>
                 {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
                   <div className="mt-5">
                     <TurnstileChallenge onToken={setCaptchaToken} />
@@ -1294,16 +1608,45 @@ export function BookingCheckout({
             )}
             {step === 4 && bookingId && paymentMethod === "online" && (
               <div className="py-5">
-                <h2 className="text-deep-teal text-2xl font-bold">Complete your payment</h2>
-                <p className="text-muted mt-2 text-sm">Reference {reference}. Your slot is reserved while payment is pending.</p>
-                <PaymentMethodChoice value="online" methods={onlineMethods} onlineEnabled={onlineEnabled} cashEnabled={serviceConfig?.cash_enabled !== false} disabled onChange={setPaymentMethod} />
-                <InlineQrPayment bookingId={bookingId} initial={inlinePayment} onPaid={(result) => {
-                  setInlinePayment(result);
-                  setReservationStatus(result.bookingStatus ?? "pending");
-                  setStep(5);
-                }} />
-                {paymentMessage && <p role="status" className="mt-3 text-sm">{paymentMessage}</p>}
-                {!inlinePayment?.qrImage && <button type="button" disabled={busy} onClick={() => void payOnline(bookingId)} className="bg-ocean mt-4 rounded-full px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{busy ? "Preparing payment…" : "Show payment QR"}</button>}
+                <h2 className="text-deep-teal text-2xl font-bold">
+                  Complete your payment
+                </h2>
+                <p className="text-muted mt-2 text-sm">
+                  Reference {reference}. Your slot is reserved while payment is
+                  pending.
+                </p>
+                <PaymentMethodChoice
+                  value="online"
+                  methods={onlineMethods}
+                  onlineEnabled={onlineEnabled}
+                  cashEnabled={serviceConfig?.cash_enabled !== false}
+                  disabled
+                  onChange={setPaymentMethod}
+                />
+                <InlineQrPayment
+                  bookingId={bookingId}
+                  initial={inlinePayment}
+                  onPaid={(result) => {
+                    setInlinePayment(result);
+                    setReservationStatus(result.bookingStatus ?? "pending");
+                    setStep(5);
+                  }}
+                />
+                {paymentMessage && (
+                  <p role="status" className="mt-3 text-sm">
+                    {paymentMessage}
+                  </p>
+                )}
+                {!inlinePayment?.qrImage && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void payOnline(bookingId)}
+                    className="bg-ocean mt-4 rounded-full px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    {busy ? "Preparing payment…" : "Show payment QR"}
+                  </button>
+                )}
               </div>
             )}
             {step === 5 && (
@@ -1324,6 +1667,11 @@ export function BookingCheckout({
                     : "Your booking request is awaiting KJM approval. Identity and driving-document review continue separately."}{" "}
                   Keep this browser session to view protected status updates.
                 </p>
+                {selectedColor && (
+                  <p className="text-deep-teal mt-3 font-bold">
+                    Selected color: {selectedColor}
+                  </p>
+                )}
                 {bookingId && <BookingEmailStatus bookingId={bookingId} />}
                 {bookingId && (
                   <Link
@@ -1378,7 +1726,9 @@ export function BookingCheckout({
                     [
                       "Payment",
                       paymentMethod === "online"
-                        ? inlinePayment?.status === "paid" ? "QRPh · Paid and verified" : "QRPh · Awaiting payment"
+                        ? inlinePayment?.status === "paid"
+                          ? "QRPh · Paid and verified"
+                          : "QRPh · Awaiting payment"
                         : "Cash on Pickup · Unpaid",
                     ],
                   ].map(([label, value]) => (
@@ -1419,27 +1769,29 @@ export function BookingCheckout({
                 )}
               </div>
             )}
-            {step === 5 && paymentMethod === "online" && inlinePayment?.status !== "paid" && (
-              <div className="border-deep-teal/15 mt-5 space-y-3 rounded-2xl border p-4">
-                {paymentMessage && (
-                  <p role="status" className="text-muted text-sm leading-6">
-                    {paymentMessage}
-                  </p>
-                )}
-                {reservationStatus === "confirmed" && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void payOnline(bookingId)}
-                    className="bg-ocean min-h-11 rounded-full px-6 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    {busy
-                      ? "Opening secure checkout…"
-                      : "Continue to secure checkout"}
-                  </button>
-                )}
-              </div>
-            )}
+            {step === 5 &&
+              paymentMethod === "online" &&
+              inlinePayment?.status !== "paid" && (
+                <div className="border-deep-teal/15 mt-5 space-y-3 rounded-2xl border p-4">
+                  {paymentMessage && (
+                    <p role="status" className="text-muted text-sm leading-6">
+                      {paymentMessage}
+                    </p>
+                  )}
+                  {reservationStatus === "confirmed" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void payOnline(bookingId)}
+                      className="bg-ocean min-h-11 rounded-full px-6 py-3 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {busy
+                        ? "Opening secure checkout…"
+                        : "Continue to secure checkout"}
+                    </button>
+                  )}
+                </div>
+              )}
             {error && (
               <p
                 role="alert"
@@ -1565,23 +1917,38 @@ function Input({
   onChange,
   type = "text",
   error,
+  placeholder,
+  autoComplete,
+  icon,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   error?: string;
+  placeholder?: string;
+  autoComplete?: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <Field label={label}>
-      <input
-        required
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="field"
-        aria-invalid={!!error}
-      />
+      <span className="rider-input-wrap">
+        {icon && (
+          <span className="rider-input-icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        <input
+          required
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`field ${icon ? "rider-input-with-icon" : ""}`}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          aria-invalid={!!error}
+        />
+      </span>
       {error && (
         <span role="alert" className="mt-1 block text-xs text-red-700">
           {error}

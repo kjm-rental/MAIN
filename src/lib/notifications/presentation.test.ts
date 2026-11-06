@@ -24,8 +24,9 @@ it.each(Object.keys(messages) as Template[])(
   (template) => {
     const r = render(template, p);
     expect(r.html).toContain(EMAIL_ASSETS.logo);
-    expect(r.html).toContain(EMAIL_ASSETS.scenic);
-    expect(r.html).toContain("Cebu-inspired illustration");
+    expect(r.html).not.toContain(EMAIL_ASSETS.scenic);
+    expect(r.html).not.toContain("background-image");
+    expect(r.html.match(/<h1[ >]/g)).toHaveLength(1);
     expect(r.html).toContain("max-width:600px");
     expect(r.html).toContain('role="presentation"');
     expect(r.html).toContain("<!--[if mso]>");
@@ -119,4 +120,33 @@ it("preserves customer-safe correction instructions", () => {
   expect(r.html).toContain("Additional Documents Required");
   expect(r.text).toContain("Replace the requested document");
   expect(r.html).not.toContain("Identity Verification Approved");
+});
+
+it("omits zero extension details but preserves actual extra-time charges", () => {
+  const rentalPricing = {
+    version: 1,
+    mode: "hourly",
+    baseDays: 1,
+    baseChargePhp: 700,
+    additionalHours: 0,
+    hourlyRatePhp: 100,
+    extensionChargePhp: 0,
+    totalPhp: 700,
+  };
+  const normal = render("booking_requested", { ...p, rentalPricing });
+  expect(normal.html).not.toContain("Hourly extension rate");
+  expect(normal.text).not.toContain("0 hour(s)");
+  const extended = render("booking_requested", {
+    ...p,
+    rentalCentavos: 80000,
+    rentalPricing: {
+      ...rentalPricing,
+      additionalHours: 1,
+      extensionChargePhp: 100,
+      totalPhp: 800,
+    },
+  });
+  expect(extended.html).toContain("Extension charge");
+  expect(extended.text).toContain("1 hour(s), rounded up");
+  expect(extended.text).toContain("₱800.00");
 });

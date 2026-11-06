@@ -1,24 +1,64 @@
 .preview {
-  border-top: 1px solid #b6c8c1;
+  display: grid;
+  gap: 12px;
 }
 .preview details {
-  border-bottom: 1px solid #b6c8c1;
-  padding: 20px 0;
+  border: 1px solid #143f4012;
+  border-radius: 18px;
+  padding: 0;
+  background: #fffdf8;
+  box-shadow: 0 4px 18px #143f4004;
+  transition:
+    border-color 180ms,
+    box-shadow 180ms;
+}
+.preview details:hover {
+  border-color: #80ada0;
+  box-shadow: 0 8px 24px #143f4008;
 }
 .preview summary {
-  border-radius: 8px;
-  padding: 6px 8px;
-  margin: -6px -8px;
-  transition: background-color 180ms ease;
+  min-height: 76px;
+  padding: 22px;
+  font-size: 15px;
+  line-height: 1.5;
+  border-radius: 18px;
 }
-.preview summary:hover {
-  background: #e6efea;
+.preview summary > svg {
+  padding: 6px;
+  width: 30px;
+  height: 30px;
+  background: #f3eee3;
+  border-radius: 50%;
+}
+.preview details[open] {
+  background: #fff;
+  border-color: #80ada0;
+  box-shadow: 0 12px 32px #143f4008;
 }
 .preview details[open] summary {
   color: #086d69;
 }
+.preview details > p {
+  margin: 0;
+  padding: 0 22px 22px;
+  font-size: 13px;
+  line-height: 1.85;
+}
 .preview summary::-webkit-details-marker {
   display: none;
+}
+.preview summary:focus-visible {
+  outline: 2px solid #086d69;
+  outline-offset: 4px;
+}
+@media (max-width: 639px) {
+  .preview summary {
+    padding: 18px;
+    font-size: 14px;
+  }
+  .preview details > p {
+    padding: 0 18px 20px;
+  }
 }
 @supports (interpolate-size: allow-keywords) {
   .preview {

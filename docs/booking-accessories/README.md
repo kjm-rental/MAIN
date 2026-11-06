@@ -1,0 +1,13 @@
+# Booking accessory quantities and unit readiness
+
+Customers use the existing extras catalog, prices, inventory reservation and booking line snapshots. Helmets/raincoats allow 0 (none), 1 or 2, bounded by the catalog limit and stock. Top boxes allow 0 or 1. Existing prices are retained; no accessories or prices are seeded.
+
+ADMIN → Optional extras → edit Top Box → **Units ready for this accessory** lists individual units with model, internal code, plate when present and status. Select only units compatible and ready for installation. The selection can stay empty until the owner knows. Save derives top-box model compatibility for existing admin manual-booking checks. Other extras retain optional model restrictions.
+
+MAIN hides unconfigured top boxes. The availability RPC filters by model, dates, selected color when supplied, unit status, archival state, overlapping rentals, holds and unavailability. No unit plates or internal codes are returned by that RPC. Switching models clears accessory quantities. Selected quantities continue into the existing review and booking lines, so staff can prepare the requested accessories.
+
+The new migration `202611030042_online_accessory_compatibility.sql` is prepared locally, **not applied**. It reuses ADMIN’s `compatible_model_ids`, adds `compatible_unit_ids`, checks quantities and compatibility in quotes/inserts, aligns inventory holds to installation-ready units and rejects incompatible assigned-unit changes. It handles both ordering patterns: guest checkout creates accessory lines before a hold; older and admin flows may create the hold first. It preserves a selected color and uses unit locks plus existing inventory exclusions. It does not change historical records, catalog prices, payment settings or availability settings.
+
+Apply through the normal reviewed migration process before deploying both apps. The older prepared ADMIN manual-booking migration now uses `ADD COLUMN IF NOT EXISTS` for the shared model array so either schema preparation order is supported. Before migration, missing readiness configuration/RPC hides top boxes and retains ordinary extras; ADMIN hides the unit selector until its column exists.
+
+Validation: focused TypeScript helper tests, MAIN/ADMIN type checks and focused lint. Database migration execution, real concurrent checkout and live inventory allocation have **not** been exercised here; no local PostgreSQL test instance is available. Before rollout, test guest and account bookings with one ready/one unready unit, overlapping holds, matching/mismatched selected colors, exhausted accessory stock, admin unit reassignment and an empty readiness selection. No booking, database change or email was created during this work.

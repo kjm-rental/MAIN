@@ -20,6 +20,7 @@ export function customerFieldErrors(value: unknown): Record<string, string> {
 }
 export const guestRequestSchema = z
   .object({
+    p_selected_color: z.string().trim().min(1).max(100).nullable().optional(),
     p_services: serviceSelectionSchema.optional(),
     p_expected_delivery_centavos: z
       .number()

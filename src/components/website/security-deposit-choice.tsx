@@ -16,7 +16,7 @@ export function SecurityDepositChoice({
   onDocumentChange: (value: string) => void;
 }) {
   return (
-    <fieldset>
+    <fieldset className="document-deposit">
       <legend className="text-deep-teal text-2xl font-bold">
         Choose your security deposit
       </legend>
@@ -24,7 +24,9 @@ export function SecurityDepositChoice({
         Your deposit arrangement is separate from rental payment and required
         identity verification. It is completed at pickup.
       </p>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div
+        className={`deposit-choice-grid mt-5 grid gap-3 ${options?.id_enabled ? "sm:grid-cols-2" : ""}`}
+      >
         <label
           className={`block rounded-2xl border p-5 ${value === "cash" ? "border-ocean bg-ocean/5" : "border-deep-teal/15 bg-white"} ${!options?.cash_enabled ? "opacity-70" : ""}`}
         >
@@ -51,29 +53,37 @@ export function SecurityDepositChoice({
               : "Awaiting approved policy and amount"}
           </strong>
         </label>
-        <label
-          className={`block rounded-2xl border p-5 ${value === "eligible_id" ? "border-ocean bg-ocean/5" : "border-deep-teal/15 bg-white"} ${!options?.id_enabled ? "opacity-70" : ""}`}
-        >
-          <input
-            type="radio"
-            name="depositOption"
-            value="eligible_id"
-            checked={value === "eligible_id"}
-            onChange={() => onChange("eligible_id")}
-            disabled={!options?.id_enabled}
-            className="accent-ocean mr-3"
-          />
-          <ShieldCheck className="text-ocean mb-3 inline-block size-5" />
-          <span className="text-deep-teal block font-bold">
-            Eligible ID Card Deposit
-          </span>
-          <span className="text-muted mt-2 block text-sm leading-6">
-            {options?.id_enabled
-              ? "Present the approved physical document at pickup. Only the legally reviewed types listed below are eligible."
-              : "Unavailable until KJM approves a legally reviewed policy and exact permitted document types. No passport, licence or government ID is assumed eligible."}
-          </span>
-        </label>
+        {options?.id_enabled && (
+          <label
+            className={`block rounded-2xl border p-5 ${value === "eligible_id" ? "border-ocean bg-ocean/5" : "border-deep-teal/15 bg-white"} ${!options?.id_enabled ? "opacity-70" : ""}`}
+          >
+            <input
+              type="radio"
+              name="depositOption"
+              value="eligible_id"
+              checked={value === "eligible_id"}
+              onChange={() => onChange("eligible_id")}
+              disabled={!options?.id_enabled}
+              className="accent-ocean mr-3"
+            />
+            <ShieldCheck className="text-ocean mb-3 inline-block size-5" />
+            <span className="text-deep-teal block font-bold">
+              Eligible ID Card Deposit
+            </span>
+            <span className="text-muted mt-2 block text-sm leading-6">
+              {options?.id_enabled
+                ? "Present the approved physical document at pickup. Only the legally reviewed types listed below are eligible."
+                : "Unavailable until KJM approves a legally reviewed policy and exact permitted document types. No passport, licence or government ID is assumed eligible."}
+            </span>
+          </label>
+        )}
       </div>
+      {!options?.id_enabled && (
+        <p className="deposit-unavailable-note">
+          ID-card deposits are currently unavailable. Original identity
+          documents are not automatically accepted as a deposit.
+        </p>
+      )}
       {value === "eligible_id" && options?.id_enabled && (
         <label className="text-deep-teal mt-5 block text-sm font-bold">
           Approved physical document type

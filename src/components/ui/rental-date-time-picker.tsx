@@ -49,10 +49,16 @@ export function RentalDateTimePicker({
     trigger = useRef<HTMLButtonElement>(null);
   const [internal, setInternal] = useState(""),
     [day, setDay] = useState(() =>
-      inline ? value?.slice(0, 10) || after?.slice(0, 10) || manilaDay(new Date()) : "",
+      inline
+        ? value?.slice(0, 10) || after?.slice(0, 10) || manilaDay(new Date())
+        : "",
     ),
     [month, setMonth] = useState(() =>
-      inline ? value?.slice(0, 7) || after?.slice(0, 7) || manilaDay(new Date()).slice(0, 7) : "",
+      inline
+        ? value?.slice(0, 7) ||
+          after?.slice(0, 7) ||
+          manilaDay(new Date()).slice(0, 7)
+        : "",
     ),
     [selectedTime, setSelectedTime] = useState(value || ""),
     [loadedHours, setLoadedHours] = useState<unknown>(null),
@@ -74,6 +80,7 @@ export function RentalDateTimePicker({
     open: isOpen,
     now,
   });
+  const [timeMenuOpen, setTimeMenuOpen] = useState(false);
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [checkingSelection, setCheckingSelection] = useState(false);
   const slots = rentalTimeSlots(day, hours, kind);
@@ -348,60 +355,135 @@ export function RentalDateTimePicker({
             </button>
           </p>
         )}
-        <div
-          role="group"
-          aria-labelledby={`${id}-times`}
-          aria-describedby={`${id}-time-note`}
-          className={`rental-time-grid mt-2 grid ${inline ? "max-h-48" : "max-h-28"} grid-cols-3 gap-2 overflow-y-auto overscroll-contain p-1`}
-        >
-          {!loadingHours &&
-            !hoursError &&
-            slots.map((slot) => (
-              <button
-                key={slot.value}
-                type="button"
-                data-time-slot={slot.value}
-                disabled={!selectable(slot.value)}
-                aria-pressed={selectedTime === slot.value}
-                aria-label={`${slot.label}${slot.nextDay ? `, next day (${slot.value.slice(0, 10)})` : ""}`}
-                onClick={() => setSelectedTime(slot.value)}
-                onKeyDown={(event) => {
-                  const buttons = Array.from(
-                    event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(
-                      "button:not(:disabled)",
-                    ),
-                  );
-                  const index = buttons.indexOf(event.currentTarget);
-                  const offset = {
-                    ArrowLeft: -1,
-                    ArrowRight: 1,
-                    ArrowUp: -3,
-                    ArrowDown: 3,
-                  }[event.key];
-                  const target =
-                    event.key === "Home"
-                      ? 0
-                      : event.key === "End"
-                        ? buttons.length - 1
-                        : offset === undefined
-                          ? null
-                          : Math.max(
-                              0,
-                              Math.min(buttons.length - 1, index + offset),
-                            );
-                  if (target === null) return;
-                  event.preventDefault();
-                  buttons[target]?.focus();
-                }}
-                className={`focus-visible:outline-ocean min-h-11 rounded-xl border px-1 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-35 ${selectedTime === slot.value ? "border-deep-teal bg-deep-teal text-white" : "border-deep-teal/20 text-deep-teal hover:border-sunset hover:bg-sand/60 bg-white"}`}
+        {inline ? (
+          <div
+            className="rental-time-menu"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                setTimeMenuOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setTimeMenuOpen(false);
+            }}
+          >
+            <button
+              type="button"
+              aria-expanded={timeMenuOpen}
+              aria-controls={`${id}-time-menu`}
+              aria-describedby={`${id}-time-note`}
+              disabled={
+                loadingHours ||
+                hoursError ||
+                !hours ||
+                liveAvailability.loading ||
+                !!liveAvailability.error
+              }
+              onClick={() => setTimeMenuOpen((open) => !open)}
+              className="rental-time-menu-trigger"
+            >
+              <span>
+                <small>
+                  {kind === "pickup" ? "Pickup time" : "Return time"} · Manila
+                </small>
+                <strong>
+                  {liveAvailability.loading
+                    ? "Checking times…"
+                    : selectedSlot && selectable(selectedSlot.value)
+                      ? `${selectedSlot.label}${selectedSlot.nextDay ? " · next day" : ""}`
+                      : "Select a time"}
+                </strong>
+              </span>
+              <ChevronRight
+                size={18}
+                aria-hidden="true"
+                className={timeMenuOpen ? "rotate-90" : ""}
+              />
+            </button>
+            {timeMenuOpen && (
+              <div
+                id={`${id}-time-menu`}
+                role="group"
+                aria-label="Available times"
+                className="rental-time-menu-options"
               >
-                {slot.label}
-                {slot.nextDay && (
-                  <span className="mt-0.5 block text-[10px]">Next day</span>
+                {slots
+                  .filter((slot) => selectable(slot.value))
+                  .map((slot) => (
+                    <button
+                      key={slot.value}
+                      type="button"
+                      aria-pressed={selectedTime === slot.value}
+                      onClick={() => {
+                        setSelectedTime(slot.value);
+                        setTimeMenuOpen(false);
+                      }}
+                    >
+                      {slot.label}
+                      {slot.nextDay ? " · next day" : ""}
+                    </button>
+                  ))}
+                {!slots.some((slot) => selectable(slot.value)) && (
+                  <p>No times available for this date.</p>
                 )}
-              </button>
-            ))}
-        </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            role="group"
+            aria-labelledby={`${id}-times`}
+            aria-describedby={`${id}-time-note`}
+            className={`rental-time-grid mt-2 grid ${inline ? "max-h-48" : "max-h-28"} grid-cols-3 gap-2 overflow-y-auto overscroll-contain p-1`}
+          >
+            {!loadingHours &&
+              !hoursError &&
+              slots.map((slot) => (
+                <button
+                  key={slot.value}
+                  type="button"
+                  data-time-slot={slot.value}
+                  disabled={!selectable(slot.value)}
+                  aria-pressed={selectedTime === slot.value}
+                  aria-label={`${slot.label}${slot.nextDay ? `, next day (${slot.value.slice(0, 10)})` : ""}`}
+                  onClick={() => setSelectedTime(slot.value)}
+                  onKeyDown={(event) => {
+                    const buttons = Array.from(
+                      event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>(
+                        "button:not(:disabled)",
+                      ),
+                    );
+                    const index = buttons.indexOf(event.currentTarget);
+                    const offset = {
+                      ArrowLeft: -1,
+                      ArrowRight: 1,
+                      ArrowUp: -3,
+                      ArrowDown: 3,
+                    }[event.key];
+                    const target =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? buttons.length - 1
+                          : offset === undefined
+                            ? null
+                            : Math.max(
+                                0,
+                                Math.min(buttons.length - 1, index + offset),
+                              );
+                    if (target === null) return;
+                    event.preventDefault();
+                    buttons[target]?.focus();
+                  }}
+                  className={`focus-visible:outline-ocean min-h-11 rounded-xl border px-1 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-35 ${selectedTime === slot.value ? "border-deep-teal bg-deep-teal text-white" : "border-deep-teal/20 text-deep-teal hover:border-sunset hover:bg-sand/60 bg-white"}`}
+                >
+                  {slot.label}
+                  {slot.nextDay && (
+                    <span className="mt-0.5 block text-[10px]">Next day</span>
+                  )}
+                </button>
+              ))}
+          </div>
+        )}
         {!loadingHours &&
           !liveAvailability.loading &&
           !liveAvailability.error &&
@@ -432,7 +514,11 @@ export function RentalDateTimePicker({
           disabled={!canApply}
           className="bg-sunset text-deep-teal min-h-12 flex-1 rounded-full text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Use this time
+          {inline
+            ? kind === "pickup"
+              ? "Confirm pickup →"
+              : "Confirm return →"
+            : "Use this time"}
         </button>
       </div>
     </>

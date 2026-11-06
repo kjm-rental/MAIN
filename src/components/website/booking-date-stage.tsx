@@ -22,7 +22,9 @@ export function BookingDateStage({
   const [active, setActive] = useState<"pickup" | "return">("pickup");
   return (
     <div className="journey-dates">
-      <p className="text-muted text-sm leading-6">Confirm both your pickup and return date and time using “Use this time” to continue.</p>
+      <p className="text-muted text-sm leading-6">
+        Choose your pickup, then your return. All times are local to Cebu.
+      </p>
       <div
         className="journey-date-switch"
         role="group"
@@ -84,9 +86,6 @@ export function BookingDateStage({
           }}
         />
       </div>
-      <p className="journey-calendar-legend">
-        <span /> Available <span /> Selected <span /> Not available
-      </p>
     </div>
   );
 }

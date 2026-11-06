@@ -256,44 +256,104 @@ export function HomeSections({ catalog }: { catalog: PublicCatalogResult }) {
         </Container>
       </section>
 
-      <section className="bg-[#f5f2ea] py-12 sm:py-16">
+      <section className="home-faq-section py-16 sm:py-24">
         <Container>
-          <HomeReveal className="grid gap-8 lg:grid-cols-[0.7fr_1fr] lg:gap-16">
-            <div>
-              <p className="text-ocean text-xs font-bold tracking-[.2em]">
-                GOOD TO KNOW
-              </p>
-              <h2 className="font-heading mt-4 max-w-sm text-3xl leading-tight font-semibold sm:text-4xl">
-                A little clarity
+          <HomeReveal className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+            <div className="home-faq-intro">
+              <span className="home-faq-eyebrow">
+                <Sparkles size={14} aria-hidden="true" /> Before you hit the
+                road
+              </span>
+              <h2>
+                Less wondering.
                 <br />
-                before the adventure.
+                <em>More wandering.</em>
               </h2>
-              <p className="text-muted mt-4 max-w-sm text-sm leading-7">
+              <p className="home-faq-description">
+                Your next adventure should feel easy. Start with the essentials,
+                then leave the rest of your questions with our local team.
+              </p>
+              <ButtonLink
+                href="/faq"
+                variant="secondary"
+                className="mt-6 gap-3"
+              >
+                Explore all FAQs <ArrowRight size={16} aria-hidden="true" />
+              </ButtonLink>
+              <div className="home-faq-help">
+                <span className="home-faq-help-icon">
+                  <Compass size={22} aria-hidden="true" />
+                </span>
+                <div>
+                  <p>Prefer a little local guidance?</p>
+                  <Link href="/contact">
+                    Talk to the KJM team{" "}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                </div>
+              </div>
+              <p className="text-muted mt-5 max-w-sm text-[11px] leading-5">
                 Business policies remain drafts until approved. Here are the
                 answers we can share today.
               </p>
-              <ButtonLink href="/faq" variant="secondary" className="mt-7">
-                View all FAQs
-              </ButtonLink>
             </div>
-            <FaqList limit={3} preview />
+            <div>
+              <div className="home-faq-list-heading">
+                <span>A few things worth knowing</span>
+              </div>
+              <FaqList preview />
+            </div>
           </HomeReveal>
         </Container>
       </section>
 
-      <section className="bg-ocean py-16 text-white sm:py-20">
-        <Container className="flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sunset text-xs font-extrabold tracking-[0.18em] uppercase">
-              Ready to explore?
-            </p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-5xl">
-              Your Cebu Adventure Starts Here.
-            </h2>
+      <section className="ride-coast-stage py-12 sm:py-20">
+        <Container>
+          <div className="ride-invitation">
+            <div className="ride-invitation-copy">
+              <p className="ride-invitation-eyebrow">
+                <Compass size={16} aria-hidden="true" /> Your next chapter, Cebu
+              </p>
+              <h2>
+                Your island.
+                <br />
+                Your pace.
+                <br />
+                <em>Your adventure.</em>
+              </h2>
+              <p className="ride-invitation-description">
+                A coastal detour. A hidden café. A little more freedom. Find
+                your motorcycle and make Cebu your own.
+              </p>
+              <ButtonLink href="/motorcycles" className="mt-6 self-start">
+                Find Your Ride{" "}
+                <ArrowRight aria-hidden="true" className="ml-3 size-4" />
+              </ButtonLink>
+              <span className="ride-invitation-location">
+                <Map size={14} aria-hidden="true" /> Start in Lapu-Lapu City.
+                See where the road takes you.
+              </span>
+            </div>
+            <div className="ride-invitation-photo">
+              <Image
+                src={editorialImages.journey.src}
+                alt={editorialImages.journey.alt}
+                fill
+                sizes="(max-width: 767px) 100vw, 50vw"
+                className="object-cover"
+              />
+              <div className="ride-invitation-photo-caption">
+                <span className="ride-invitation-stamp">
+                  <Bike aria-hidden="true" size={22} /> TWO WHEELS.
+                  <br />
+                  ENDLESS POSSIBILITIES.
+                </span>
+                <span className="text-[10px] text-white/70">
+                  Cebu-inspired illustrative scenery
+                </span>
+              </div>
+            </div>
           </div>
-          <ButtonLink href="/motorcycles" variant="light" className="shrink-0">
-            Find Your Ride <Bike aria-hidden="true" className="ml-2 size-4" />
-          </ButtonLink>
         </Container>
       </section>
     </>

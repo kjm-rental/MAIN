@@ -20,7 +20,7 @@ export function PaymentMethodChoice({
     customerOnlinePaymentsEnabled && onlineEnabled && methods.includes("qrph");
   const selected = qrReady ? value : "cash";
   return (
-    <fieldset disabled={disabled} className="my-6">
+    <fieldset disabled={disabled} className="review-payment my-6">
       <legend className="text-deep-teal mb-3 text-lg font-bold">
         Choose Your Payment Method
       </legend>
@@ -61,7 +61,10 @@ export function PaymentMethodChoice({
           );
         })}
       </div>
-      <div className="border-deep-teal/10 mt-4 border-t pt-4">
+      <details className="review-future-payments border-deep-teal/10 mt-4 border-t pt-4">
+        <summary className="text-muted cursor-pointer text-xs">
+          Other payment methods · not available yet
+        </summary>
         <p className="text-muted mb-2 flex items-center gap-1.5 text-xs font-semibold">
           <LockKeyhole aria-hidden className="size-3" />
           More Payment Methods — Coming Soon
@@ -84,7 +87,7 @@ export function PaymentMethodChoice({
             </span>
           ))}
         </div>
-      </div>
+      </details>
     </fieldset>
   );
 }

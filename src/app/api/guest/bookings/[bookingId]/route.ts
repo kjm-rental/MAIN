@@ -22,7 +22,7 @@ export async function GET(
     const { data, error } = await access.db
       .from("bookings")
       .select(
-        "booking_reference,status,start_at,end_at,total_centavos,deposit_required_centavos,rental_pricing",
+        "booking_reference,selected_color,status,start_at,end_at,total_centavos,deposit_required_centavos,rental_pricing",
       )
       .eq("id", id)
       .single();

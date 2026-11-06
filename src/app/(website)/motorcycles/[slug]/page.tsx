@@ -63,7 +63,7 @@ async function MotorcycleDetail({ params }: Props) {
             All motorcycles
           </Link>
           <div className="mt-8 grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="overflow-hidden rounded-[2rem]">
+            <div className="self-start overflow-hidden rounded-[2rem]">
               <MotorcycleVisual
                 model={motorcycle.model}
                 media={motorcycle.primaryImage}
