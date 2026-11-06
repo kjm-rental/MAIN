@@ -1,4 +1,5 @@
 // Local scheduled workers. Never log credentials, payloads, customer details or provider URLs.
+/* eslint-disable @typescript-eslint/no-require-imports -- Standalone Node CommonJS scheduler. */
 const fs = require("node:fs");
 const path = require("node:path");
 const { parseEnv } = require("node:util");

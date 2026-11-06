@@ -76,21 +76,25 @@ describe("booking rental terms acceptance", () => {
         );
     },
   );
-  it("gates checkout before auth/submission while keeping the deposit RPC version separate", () => {
+  it("gates guest checkout before submission while keeping the deposit policy version separate", () => {
     const checkout = readFileSync(
       "src/components/website/booking-checkout.tsx",
       "utf8",
     );
     const submit = checkout.slice(
       checkout.indexOf("async function submit()"),
-      checkout.indexOf("if (!configured)"),
+      checkout.indexOf("const booking = await response.json()"),
     );
+    const acceptance = submit.indexOf(
+      "assertBookingAcceptance(consented, acceptedTermsVersion)",
+    );
+    expect(acceptance).toBeGreaterThanOrEqual(0);
     expect(
       submit.indexOf(
         "assertBookingAcceptance(consented, acceptedTermsVersion)",
       ),
-    ).toBeLessThan(submit.indexOf("auth.getUser()"));
-    expect(submit).toContain('rpc("submit_booking_request_v3"');
+    ).toBeLessThan(submit.indexOf('fetch("/api/guest/bookings"'));
+    expect(submit).toContain("p_declaration: true");
     expect(submit).toContain("p_policy_version: quote.policy_version");
     expect(checkout).toMatch(
       /!hasRequiredBookingAcceptance\(\s*consented,\s*acceptedTermsVersion,?\s*\)/,

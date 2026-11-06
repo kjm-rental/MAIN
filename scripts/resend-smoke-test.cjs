@@ -33,9 +33,27 @@ async function main(options = {}) {
     throw new Error("Server-side Resend key is missing or malformed.");
   if (!z.email().safeParse(recipient).success)
     throw new Error("Test recipient is missing or malformed.");
-  const { BRAND, render } = await import(
-    pathToFileURL(path.join(root, "src/lib/notifications/templates.ts")).href
-  );
+  // Node's direct TypeScript loader does not read Next.js path aliases.
+  const hooks = require("node:module").registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.startsWith("@/"))
+        return nextResolve(
+          pathToFileURL(path.join(root, "src", specifier.slice(2) + ".ts"))
+            .href,
+          context,
+        );
+      return nextResolve(specifier, context);
+    },
+  });
+  let template;
+  try {
+    template = await import(
+      pathToFileURL(path.join(root, "src/lib/notifications/templates.ts")).href
+    );
+  } finally {
+    hooks.deregister();
+  }
+  const { BRAND, render } = template;
   const rendered = render("booking_approved", {
     bookingId: "11111111-1111-4111-8111-111111111111",
     reference: "KJM-EMAIL-TEST-NOT-A-BOOKING",
