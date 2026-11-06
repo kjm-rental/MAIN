@@ -35,3 +35,13 @@ GitHub scheduled triggers are best effort. A successful manual dispatch does not
 Complete one owner-controlled booking through the public site, verify its matching Admin record, and check the customer email/owner alert. The owner must complete any real QRPh payment. Review the resulting payment/deposit/verification state before any real handover.
 
 This launch verification did not create a new customer booking, charge a payment, approve documents, hand over a motorcycle, or record a deposit/return. Existing historical staging/payment evidence is separate from this current acceptance check.
+
+## Confirmation email incident — November 6
+
+The owner subsequently created booking `KJM-20261106-4F270747`; Admin showed it confirmed and paid. Its confirmation email remained pending, and earlier email attempts carried the generic `unsupported_template` error.
+
+The production `KJM_CUSTOMER_APP_URL` was `kjmride.com` without a scheme. The renderer rejected the URL before contacting Resend. Corrected it to `https://kjmride.com`. Also corrected Admin notification origins that had been copied from localhost configuration.
+
+MAIN now validates notification links before claiming an outbox lease. ADMIN reports invalid owner configuration as a failure rather than a successful zero-work batch. Regression checks passed: 444 MAIN tests, 480 ADMIN tests, both lint checks and both production builds.
+
+Dispatched the existing guarded confirmation event for this booking, preserving its recipient binding, lease and provider idempotency key. Resend accepted it. The connected recipient Gmail account independently confirmed the matching message in **Inbox / Updates**, unread, at **11:55 AM Asia/Manila**. No new booking, charge or verification decision was created by this recovery.
