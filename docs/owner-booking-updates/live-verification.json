@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-11-07T08:10:30.108Z",
+  "checks": [
+    {
+      "check": "Airport to Airport + Airport to Airport",
+      "status": 200,
+      "totalCentavos": 35000
+    },
+    {
+      "check": "Lapu-Lapu City Area + Lapu-Lapu City Area",
+      "status": 200,
+      "totalCentavos": 30000
+    },
+    {
+      "check": "Airport to Airport + Cebu City Area",
+      "status": 200,
+      "totalCentavos": 50000
+    },
+    {
+      "check": "Draw your signature",
+      "passed": true
+    },
+    {
+      "check": "Clear signature",
+      "passed": true
+    },
+    {
+      "check": "Same as delivery location",
+      "passed": true
+    },
+    {
+      "check": "do not need to leave or surrender your original IDs",
+      "passed": true
+    },
+    {
+      "check": "Public booking page",
+      "status": 200
+    },
+    {
+      "check": "Admin sign-in",
+      "status": 200
+    }
+  ]
+}
