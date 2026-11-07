@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -40,7 +41,7 @@ const options = [
     key: "both",
     title: "Take care of both",
     description: "Delivery and collection at your chosen locations.",
-    tag: "Service fees",
+    tag: "Combined service charge",
     Icon: Route,
   },
 ] as const;
@@ -72,6 +73,7 @@ export function DeliveryChoice({
   value: ServiceSelection;
   onChange: (v: ServiceSelection) => void;
 }) {
+  const [sameLocation, setSameLocation] = useState(false);
   if (!config.enabled) return null;
   const mode = value.delivery
     ? value.collection
@@ -107,7 +109,8 @@ export function DeliveryChoice({
               name="delivery-mode"
               value={key}
               checked={mode === key}
-              onChange={() =>
+              onChange={() => {
+                setSameLocation(false);
                 onChange({
                   delivery: ["delivery", "both"].includes(key)
                     ? (value.delivery ?? blank())
@@ -115,8 +118,8 @@ export function DeliveryChoice({
                   collection: ["collection", "both"].includes(key)
                     ? (value.collection ?? blank())
                     : null,
-                })
-              }
+                });
+              }}
             />
             <span className={styles.optionTop}>
               <span className={styles.icon}>
@@ -143,13 +146,42 @@ export function DeliveryChoice({
           Pickup and return at KJM. No delivery or collection fees.
         </p>
       )}
+      {value.delivery && value.collection && (
+        <label className={styles.selfNote}>
+          <input
+            type="checkbox"
+            checked={sameLocation}
+            onChange={(event) => {
+              setSameLocation(event.target.checked);
+              if (event.target.checked)
+                onChange({ ...value, collection: { ...value.delivery! } });
+            }}
+          />
+          Same as delivery location (pickup at the end of the rental)
+        </label>
+      )}
+      {mode !== "self" && (
+        <p className={styles.selfNote}>
+          One charge covers delivery and pickup. For different areas, the higher
+          area rate applies.
+        </p>
+      )}
       {(["delivery", "collection"] as const).map((leg) => {
         const detail = value[leg];
-        if (!detail) return null;
+        if (!detail || (leg === "collection" && sameLocation && value.delivery))
+          return null;
         const isDelivery = leg === "delivery";
         const area = config.areas.find((a) => a.id === detail.areaId);
-        const update = (key: keyof typeof detail, next: string) =>
-          onChange({ ...value, [leg]: { ...detail, [key]: next } });
+        const update = (key: keyof typeof detail, next: string) => {
+          const updated = { ...detail, [key]: next };
+          onChange({
+            ...value,
+            [leg]: updated,
+            ...(isDelivery && sameLocation && value.collection
+              ? { collection: { ...updated } }
+              : {}),
+          });
+        };
         return (
           <fieldset key={leg} className={styles.details}>
             <legend className={styles.srOnly}>
@@ -174,7 +206,7 @@ export function DeliveryChoice({
               {area && (
                 <span className={styles.fee}>
                   {pesos(isDelivery ? area.delivery_php : area.collection_php)}
-                  <small>{isDelivery ? "delivery" : "collection"}</small>
+                  <small>combined area rate</small>
                 </span>
               )}
             </div>

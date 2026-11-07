@@ -63,7 +63,7 @@ export const guestRequestSchema = z
     p_entry_date: z.iso.date().nullable(),
     p_privacy_consent: z.literal(true),
     p_declaration: z.literal(true),
-    p_deposit_option: z.enum(["cash", "eligible_id"]),
+    p_deposit_option: z.literal("cash"),
     p_policy_version: z.string().min(1).max(100),
     p_document_type: z.string().max(100).nullable(),
     captchaToken: z.string().max(4096),

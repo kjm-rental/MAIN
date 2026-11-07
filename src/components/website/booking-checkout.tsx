@@ -26,6 +26,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookingDocumentUpload as Upload } from "./booking-document-upload";
 import { documentFileError } from "@/lib/booking-document-file";
+import { SignaturePad } from "./signature-pad";
+import {
+  signatureStrokesSchema,
+  type SignatureStrokes,
+} from "@/lib/electronic-signature";
 import { TermsAcceptance } from "@/components/website/terms-acceptance";
 import {
   assertBookingAcceptance,
@@ -244,6 +249,9 @@ export function BookingCheckout({
     ? quote.total_centavos +
       (bookingId ? 0 : (serviceQuote?.totalCentavos ?? 0))
     : 0;
+  const [signatureStrokes, setSignatureStrokes] = useState<SignatureStrokes>(
+    [],
+  );
   const [acceptedTermsVersion, setAcceptedTermsVersion] = useState<
     string | null
   >(null);
@@ -318,11 +326,7 @@ export function BookingCheckout({
     }
   }
   const [depositOption, setDepositOption] = useState(() =>
-    depositOptions?.cash_enabled
-      ? "cash"
-      : depositOptions?.id_enabled
-        ? "eligible_id"
-        : "",
+    depositOptions?.cash_enabled ? "cash" : "",
   );
   const [depositDocument, setDepositDocument] = useState(
     depositOptions?.accepted_document_types.length === 1
@@ -672,6 +676,10 @@ export function BookingCheckout({
     }
     try {
       assertBookingAcceptance(consented, acceptedTermsVersion);
+      if (!signatureStrokesSchema.safeParse(signatureStrokes).success)
+        throw new Error(
+          "Please draw your signature in the signature box before confirming.",
+        );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Accept the required terms.");
       return;
@@ -793,6 +801,8 @@ export function BookingCheckout({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            signatureName: form.fullName.trim(),
+            signatureStrokes,
             termsVersion: acceptedTermsVersion!,
             accepted: true,
           }),
@@ -1582,6 +1592,10 @@ export function BookingCheckout({
                     <ShieldCheck size={18} aria-hidden="true" />
                     <h3>Before you confirm</h3>
                   </div>
+                  <SignaturePad
+                    value={signatureStrokes}
+                    onChange={setSignatureStrokes}
+                  />
                   <TermsAcceptance
                     acceptedVersion={acceptedTermsVersion}
                     onChange={setAcceptedTermsVersion}

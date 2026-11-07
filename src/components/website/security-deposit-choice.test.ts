@@ -27,15 +27,13 @@ function render(idEnabled: boolean, types = ["Original ID"]) {
     }),
   );
 }
-describe("ID deposit checkout", () => {
-  it("offers the ID option only when enabled", () => {
-    expect(render(true)).toContain('value="eligible_id"');
+describe("cash-only deposit checkout", () => {
+  it("never offers original ID custody, even with stale settings", () => {
+    expect(render(true)).not.toContain('value="eligible_id"');
     expect(render(false)).not.toContain('value="eligible_id"');
-  });
-  it("does not require an extra document-type selection for the standard ID option", () => {
-    expect(render(true)).not.toContain("<select");
-  });
-  it("preserves selection when multiple existing document types are configured", () => {
-    expect(render(true, ["Card A", "Card B"])).toContain("<select");
+    expect(render(true)).toContain(
+      "do not need to leave or surrender your original IDs",
+    );
+    expect(render(true)).toContain('value="cash"');
   });
 });

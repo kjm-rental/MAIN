@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { signatureStrokesSchema } from "@/lib/electronic-signature";
 import { after } from "next/server";
 import {
   ownedGuestBooking,
@@ -25,13 +26,17 @@ export async function POST(
       );
     const body = z
       .object({
+        signatureStrokes: signatureStrokesSchema,
+        signatureName: z.string().trim().min(2).max(160),
         termsVersion: z.string().min(1).max(100),
         accepted: z.literal(true),
       })
       .parse(await request.json());
     const { data, error } = await access.db.rpc(
-      "finalize_guest_booking_request",
+      "draw_and_finalize_guest_booking_request",
       {
+        p_signature_name: body.signatureName,
+        p_signature_strokes: body.signatureStrokes,
         p_booking_id: id,
         p_access_hash: access.hash,
         p_terms_version: body.termsVersion,
@@ -66,7 +71,14 @@ export async function POST(
       }
     });
     return guestResponse(data[0]);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return guestResponse(
+        {
+          error: "Please draw your signature and accept the terms.",
+        },
+        400,
+      );
     return guestResponse(
       {
         error:
