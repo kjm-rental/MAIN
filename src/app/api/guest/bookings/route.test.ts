@@ -68,6 +68,22 @@ it("blocks cross-origin submissions", async () => {
   ).toBe(403);
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
+it("accepts the single customer name without duplicate document names or typed vehicle categories", async () => {
+  const simplified = Object.fromEntries(
+    Object.entries(payload).filter(
+      ([key]) =>
+        !["p_identity_name", "p_license_name", "p_vehicle_categories"].includes(
+          key,
+        ),
+    ),
+  );
+  expect((await POST(request(simplified))).status).toBe(200);
+  const saved = mocks.rpc.mock.calls[0][1].p_payload;
+  expect(saved.p_full_name).toBe("Guest Customer");
+  expect(saved).not.toHaveProperty("p_identity_name");
+  expect(saved).not.toHaveProperty("p_license_name");
+  expect(saved).not.toHaveProperty("p_vehicle_categories");
+});
 it("returns field validation without JSON or raw Zod errors", async () => {
   const response = await POST(request({ ...payload, p_email: "bad" }));
   const data = await response.json();

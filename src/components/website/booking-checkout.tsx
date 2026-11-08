@@ -96,11 +96,8 @@ type Form = {
   phone: string;
   country: string;
   customerType: "philippine_resident" | "international_visitor";
-  identityName: string;
-  licenseName: string;
   licenseCountry: string;
   licenseExpiration: string;
-  vehicleCategories: string;
   entryDate: string;
 };
 const initial: Form = {
@@ -111,11 +108,8 @@ const initial: Form = {
   phone: "",
   country: "",
   customerType: "philippine_resident",
-  identityName: "",
-  licenseName: "",
   licenseCountry: "Philippines",
   licenseExpiration: "",
-  vehicleCategories: "",
   entryDate: "",
 };
 type BookingExtra = {
@@ -600,12 +594,7 @@ export function BookingCheckout({
           throw new Error(
             "Upload the required identity and driver's license documents.",
           );
-        if (
-          !form.licenseExpiration ||
-          !form.identityName ||
-          !form.licenseName ||
-          !form.vehicleCategories
-        ) {
+        if (!form.licenseExpiration) {
           documentDetails.current?.setAttribute("open", "");
           throw new Error("Complete the required document information below.");
         }
@@ -745,11 +734,8 @@ export function BookingCheckout({
           p_phone: form.phone,
           p_country: form.country,
           p_customer_type: form.customerType,
-          p_identity_name: form.identityName,
-          p_license_name: form.licenseName,
           p_license_country: form.licenseCountry,
           p_license_expiration: form.licenseExpiration,
-          p_vehicle_categories: form.vehicleCategories,
           p_entry_date: form.entryDate || null,
           p_privacy_consent: true,
           p_declaration: true,
@@ -1422,20 +1408,11 @@ export function BookingCheckout({
                     <span>Required</span>
                   </summary>
                   <p className="document-info-hint">
-                    Copy these details exactly as printed on your ID and
-                    license.
+                    Enter your license country and expiry date. KJM will check
+                    your name and driving eligibility from the uploaded
+                    documents.
                   </p>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <Input
-                      label="Name on identity document"
-                      value={form.identityName}
-                      onChange={(v) => update("identityName", v)}
-                    />
-                    <Input
-                      label="Name on driver's license"
-                      value={form.licenseName}
-                      onChange={(v) => update("licenseName", v)}
-                    />
                     <Input
                       label="License issuing country"
                       value={form.licenseCountry}
@@ -1446,11 +1423,6 @@ export function BookingCheckout({
                       type="date"
                       value={form.licenseExpiration}
                       onChange={(v) => update("licenseExpiration", v)}
-                    />
-                    <Input
-                      label="Permitted vehicle categories"
-                      value={form.vehicleCategories}
-                      onChange={(v) => update("vehicleCategories", v)}
                     />
                     {form.customerType === "international_visitor" && (
                       <Input
