@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkoutURL, configuration, createCheckout, type Checkout, type PaymentDB, reconcile, validateSession, verifySignature } from "./test-payments";
+import { checkoutURL, configuration, createCheckout, type Checkout, type PaymentDB, reconcile, validateSession, verifySignature, providerRead } from "./test-payments";
 
 const id = "11111111-1111-4111-8111-111111111111";
 const checkout: Checkout = {
@@ -26,6 +26,21 @@ beforeEach(() => {
   vi.stubEnv("PAYMONGO_TEST_ENABLED", "true");
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+it("deduplicates provider reads only inside one request, with fresh reads in the next request", async()=>{
+  const fetcher=vi.fn(async()=>response(session())); vi.stubGlobal("fetch",fetcher);
+  const reads=new Map<string,Promise<unknown>>();
+  await Promise.all([providerRead("checkout_sessions","/cs_test123",reads),providerRead("checkout_sessions","/cs_test123",reads)]);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await providerRead("checkout_sessions","/cs_test123",new Map());
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+it("discards request snapshots after expiration and rechecks for a racing successful payment",async()=>{
+ const fetcher=vi.fn().mockResolvedValueOnce(response(session())).mockResolvedValueOnce(response(session())).mockResolvedValueOnce(response(session(true)));
+ vi.stubGlobal("fetch",fetcher);
+ const d=db(name=>name==="settle_paymongo_test_checkout"?"review_required":null);
+ const result=await reconcile(d.client,{...checkout,checkout_deadline:"2020-01-01T00:00:00Z"},undefined,undefined,new Map());
+ expect(result.status).toBe("review_required");expect(fetcher).toHaveBeenCalledTimes(3);expect(fetcher.mock.calls[1][0]).toContain("/expire");
+});
 describe("test payment safeguards", () => {
   it("requires separate LIVE credentials and production key binding; TEST cannot enter LIVE", () => {
     vi.stubEnv("PAYMONGO_MODE", "live");

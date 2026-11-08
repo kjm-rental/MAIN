@@ -47,14 +47,18 @@ export function databaseClient() {
 export type PaymentDB = ReturnType<typeof databaseClient>;
 export async function availableMethods() {
   const c = configuration(true);
-  if (c.live && !await rpc<boolean>(databaseClient(), "paymongo_live_ready", {})) throw new PaymentError(503, "Online payments are not ready");
-  if(c.live) {
-    const options=await rpc<{qrph_enabled:boolean;qrph_ready:boolean}>(databaseClient(),"get_delivery_options",{});
-    if(!options.qrph_enabled || !options.qrph_ready)throw new PaymentError(503,"QRPh is disabled or not verified");
-  }
-  const methods = await accountMethods();
-  if (!c.live) return methods;
-  const approved = await rpc<string[]>(databaseClient(), "paymongo_live_methods", {});
+  if (!c.live) return accountMethods();
+  const db = databaseClient();
+  // Independent, read-only checks; no checkout or provider mutation happens
+  // until every readiness and allowed-method check has passed.
+  const [ready, options, methods, approved] = await Promise.all([
+    rpc<boolean>(db, "paymongo_live_ready", {}),
+    rpc<{qrph_enabled:boolean;qrph_ready:boolean}>(db,"get_delivery_options",{}),
+    accountMethods(),
+    rpc<string[]>(db, "paymongo_live_methods", {}),
+  ]);
+  if (!ready) throw new PaymentError(503, "Online payments are not ready");
+  if (!options.qrph_enabled || !options.qrph_ready) throw new PaymentError(503,"QRPh is disabled or not verified");
   return methods.filter(method => approved.includes(method));
 }
 // Read-only TEST-account capability preview. No database or booking access.
@@ -155,6 +159,16 @@ export async function providerResource(resource: "checkout_sessions" | "payment_
   const json = await response.json();
   return json.data;
 }
+// Exists only for one HTTP request; never shares payment data across requests.
+export type PaymentReads = Map<string, Promise<unknown>>;
+export function providerRead(resource: "checkout_sessions" | "payment_intents", path: string, reads?: PaymentReads) {
+  const key = resource + path;
+  const existing = reads?.get(key);
+  if (existing) return existing;
+  const pending = providerResource(resource, path);
+  reads?.set(key, pending);
+  return pending;
+}
 export async function loadCheckout(db: PaymentDB, id: string) {
   const raw = await rpc<unknown>(db, paymentRPC("read_paymongo_test_checkout"), { p_checkout_id: id });
   if (!raw) throw new PaymentError(404, "Test checkout unavailable");
@@ -170,16 +184,20 @@ async function noteProviderStatus(db:PaymentDB,id:string,status:string) {
   } catch { /* An unavailable status cache cannot undo a verified financial receipt. */ }
 }
 // Both webhook and cron use this authoritative retrieval, never return-URL data.
-export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: string, expectedPaymentId?: string) {
+export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: string, expectedPaymentId?: string, reads?: PaymentReads) {
   if (recoveredSession && c.checkout_session_id && recoveredSession !== c.checkout_session_id)
     throw new PaymentError(409, "Session identity mismatch");
   const sessionID = c.checkout_session_id ?? recoveredSession;
   if (!sessionID) return { status: "creation_unresolved", checkoutId: c.id };
   if (!/^cs_[A-Za-z0-9]+$/.test(sessionID)) throw new PaymentError(400, "Invalid session");
   async function retrieve() {
-    const saved = validateSession(await provider(`/${sessionID}`), c);
+    const [sessionRaw, intentRaw] = await Promise.all([
+      providerRead("checkout_sessions", `/${sessionID}`, reads),
+      c.provider_intent_id ? providerRead("payment_intents", `/${c.provider_intent_id}`, reads) : Promise.resolve(null),
+    ]);
+    const saved = validateSession(sessionRaw, c);
     if (!c.provider_intent_id) return saved;
-    const intent = validateIntent(await providerResource("payment_intents", `/${c.provider_intent_id}`), c);
+    const intent = validateIntent(intentRaw, c);
     return { ...saved, attributes: { ...saved.attributes, payments: intent.attributes.payments } };
   }
   let session = await retrieve();
@@ -191,6 +209,7 @@ export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: s
   if (!paid.length && (Date.now() >= Date.parse(c.checkout_deadline) || c.reservation_active !== true) && session.attributes.status !== "expired") {
     // Expiration races with payment: retrieve again, never treat expiration as proof of nonpayment.
     await provider(`/${session.id}/expire`, {});
+    reads?.clear(); // Expiration may race with payment: always retrieve fresh evidence.
     session = await retrieve();
     paid = session.attributes.payments.filter(p => p.attributes.status === "paid");
   }
@@ -211,7 +230,7 @@ export async function reconcile(db: PaymentDB, c: Checkout, recoveredSession?: s
   await noteProviderStatus(db,c.id,status);
   return { status, checkoutId:c.id };
 }
-export async function createCheckout(db: PaymentDB, booking: string, owner: string | null, key: string, guestHash?: string) {
+export async function createCheckout(db: PaymentDB, booking: string, owner: string | null, key: string, guestHash?: string, reads?: PaymentReads) {
   configuration(true);
   const methods = (await availableMethods()).filter(method => !configuration().live || method === "qrph");
   if (!methods.length) throw new PaymentError(503, "Online payments unavailable");
@@ -221,9 +240,9 @@ export async function createCheckout(db: PaymentDB, booking: string, owner: stri
   const current = await loadCheckout(db, c.id);
   if (current.status === "paid" || current.status === "review_required") return { status: current.status, checkoutId: c.id };
   if (current.checkout_session_id) {
-    const state = await reconcile(db, current);
+    const state = await reconcile(db, current, undefined, undefined, reads);
     if (!["pending","failed_unpaid"].includes(state.status)) return state;
-    const session = validateSession(await provider(`/${current.checkout_session_id}`), current);
+    const session = validateSession(await providerRead("checkout_sessions", `/${current.checkout_session_id}`, reads), current);
     if (Date.now() >= Date.parse(current.checkout_deadline) || !current.reservation_active || session.attributes.status !== "active")
       throw new PaymentError(409, "Checkout no longer payable");
     return { ...state, checkoutUrl: checkoutURL(session) };
@@ -240,9 +259,10 @@ export async function createCheckout(db: PaymentDB, booking: string, owner: stri
     payment_method_types: methods, reference_number: c.id,
     success_url: returnURL, cancel_url: returnURL, send_email_receipt: false,
   } } }), c);
+  reads?.set(`checkout_sessions/${session.id}`, Promise.resolve(session));
   await rpc(db, paymentRPC("attach_paymongo_test_session"), { p_checkout_id: c.id, p_session_id: session.id });
   const fresh = await loadCheckout(db, c.id);
-  if (!fresh.reservation_active || Date.now() >= Date.parse(fresh.checkout_deadline)) return reconcile(db, fresh);
+  if (!fresh.reservation_active || Date.now() >= Date.parse(fresh.checkout_deadline)) return reconcile(db, fresh, undefined, undefined, reads);
   return { status: "pending", checkoutId: c.id, checkoutUrl: checkoutURL(session) };
 }
 export function verifySignature(raw: Buffer, header: string | null, secret: string, now = Date.now(), live = false) {

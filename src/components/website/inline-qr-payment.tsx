@@ -20,6 +20,25 @@ export type InlinePaymentResult = {
   amountCentavos?: number;
   bookingStatus?: string;
 };
+export function resolveInlinePayment(
+  initial?: InlinePaymentResult | null,
+  remote?: InlinePaymentResult | null,
+): InlinePaymentResult {
+  if (remote?.status === "not_started") return initial ?? remote;
+  // The first status poll can start before QR creation finishes and arrive
+  // before the POST result. Do not let that older empty response hide the QR.
+  if (
+    remote?.status === "pending" &&
+    !remote.qrImage &&
+    initial?.status === "pending" &&
+    initial.qrImage &&
+    (remote.amountCentavos == null ||
+      remote.amountCentavos === initial.amountCentavos) &&
+    (!remote.expiresAt || remote.expiresAt === initial.expiresAt)
+  )
+    return { ...initial, ...remote, qrImage: initial.qrImage };
+  return remote ?? initial ?? { status: "pending" };
+}
 export function InlineQrPayment({
   bookingId,
   initial,
@@ -38,10 +57,7 @@ export function InlineQrPayment({
   const [remote, setPayment] = useState<InlinePaymentResult | null>(null);
   const [now, setNow] = useState(0);
   const payment = useMemo(
-    () =>
-      remote?.status === "not_started"
-        ? (initial ?? remote)
-        : (remote ?? initial ?? { status: "pending" }),
+    () => resolveInlinePayment(initial, remote),
     [remote, initial],
   );
   const [message, setMessage] = useState("");
