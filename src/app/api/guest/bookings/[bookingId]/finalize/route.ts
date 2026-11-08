@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { signatureStrokesSchema } from "@/lib/electronic-signature";
+import { normalizeSignatureImage } from "@/lib/signature-image";
 import { after } from "next/server";
 import {
   ownedGuestBooking,
@@ -24,19 +25,49 @@ export async function POST(
         { error: "Keep the browser used for this booking or contact KJM." },
         403,
       );
+    const shared = {
+      signatureName: z.string().trim().min(2).max(160),
+      termsVersion: z.string().min(1).max(100),
+      accepted: z.literal(true),
+    };
+    const input = await request.json();
     const body = z
-      .object({
-        signatureStrokes: signatureStrokesSchema,
-        signatureName: z.string().trim().min(2).max(160),
-        termsVersion: z.string().min(1).max(100),
-        accepted: z.literal(true),
-      })
-      .parse(await request.json());
+      .discriminatedUnion("signatureMethod", [
+        z.object({
+          ...shared,
+          signatureMethod: z.literal("drawn"),
+          signatureStrokes: signatureStrokesSchema,
+        }),
+        z.object({
+          ...shared,
+          signatureMethod: z.literal("uploaded"),
+          signatureImage: z.string().min(1).max(1_500_000),
+        }),
+      ])
+      .parse({ ...input, signatureMethod: input.signatureMethod ?? "drawn" });
+    let image: string | undefined;
+    if (body.signatureMethod === "uploaded") {
+      try {
+        image = await normalizeSignatureImage(body.signatureImage);
+      } catch {
+        return guestResponse(
+          {
+            error:
+              "Choose a clear, non-blank PNG or JPG signature image and try again.",
+          },
+          400,
+        );
+      }
+    }
     const { data, error } = await access.db.rpc(
-      "draw_and_finalize_guest_booking_request",
+      body.signatureMethod === "uploaded"
+        ? "upload_and_finalize_guest_booking_request"
+        : "draw_and_finalize_guest_booking_request",
       {
         p_signature_name: body.signatureName,
-        p_signature_strokes: body.signatureStrokes,
+        ...(body.signatureMethod === "uploaded"
+          ? { p_signature_image: image }
+          : { p_signature_strokes: body.signatureStrokes }),
         p_booking_id: id,
         p_access_hash: access.hash,
         p_terms_version: body.termsVersion,
@@ -75,7 +106,7 @@ export async function POST(
     if (error instanceof z.ZodError)
       return guestResponse(
         {
-          error: "Please draw your signature and accept the terms.",
+          error: "Please draw or upload your signature and accept the terms.",
         },
         400,
       );

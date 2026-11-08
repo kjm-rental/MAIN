@@ -26,7 +26,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookingDocumentUpload as Upload } from "./booking-document-upload";
 import { documentFileError } from "@/lib/booking-document-file";
-import { SignaturePad } from "./signature-pad";
+import { SignatureChoice } from "./signature-choice";
+import { uploadGuestDocument } from "@/lib/guest-checkout/upload-document";
 import {
   signatureStrokesSchema,
   type SignatureStrokes,
@@ -252,6 +253,10 @@ export function BookingCheckout({
   const [signatureStrokes, setSignatureStrokes] = useState<SignatureStrokes>(
     [],
   );
+  const [signatureMethod, setSignatureMethod] = useState<"drawn" | "uploaded">(
+    "drawn",
+  );
+  const [signatureImage, setSignatureImage] = useState("");
   const [acceptedTermsVersion, setAcceptedTermsVersion] = useState<
     string | null
   >(null);
@@ -676,7 +681,14 @@ export function BookingCheckout({
     }
     try {
       assertBookingAcceptance(consented, acceptedTermsVersion);
-      if (!signatureStrokesSchema.safeParse(signatureStrokes).success)
+      if (signatureMethod === "uploaded" && !signatureImage)
+        throw new Error(
+          "Please upload your signature image before confirming.",
+        );
+      if (
+        signatureMethod === "drawn" &&
+        !signatureStrokesSchema.safeParse(signatureStrokes).success
+      )
         throw new Error(
           "Please draw your signature in the signature box before confirming.",
         );
@@ -781,17 +793,7 @@ export function BookingCheckout({
           setUploadProgress((v) => ({ ...v, completed: v.completed + 1 }));
           continue;
         }
-        const uploadForm = new FormData();
-        uploadForm.set("file", file);
-        uploadForm.set("kind", kind);
-        const upload = await fetch(
-          `/api/guest/bookings/${booking.booking_id}/documents`,
-          { method: "POST", body: uploadForm },
-        );
-        if (!upload.ok)
-          throw new Error(
-            "Your document could not be saved. Please try again or contact KJM.",
-          );
+        await uploadGuestDocument(booking.booking_id, kind, file);
         documentProgress.current.set(kind, { file, path: "", uploaded: true });
         setUploadProgress((v) => ({ ...v, completed: v.completed + 1 }));
       }
@@ -803,6 +805,9 @@ export function BookingCheckout({
           body: JSON.stringify({
             signatureName: form.fullName.trim(),
             signatureStrokes,
+            signatureMethod,
+            signatureImage:
+              signatureMethod === "uploaded" ? signatureImage : undefined,
             termsVersion: acceptedTermsVersion!,
             accepted: true,
           }),
@@ -811,7 +816,8 @@ export function BookingCheckout({
       const finalRecord = await finalResponse.json();
       if (!finalResponse.ok)
         throw new Error(
-          "We couldn’t complete your request. Check your documents and dates, then retry. Your uploaded documents are preserved.",
+          finalRecord.error ||
+            "We couldn’t complete your request. Check your documents and dates, then retry. Your uploaded documents are preserved.",
         );
       // Advisory checks never delay or change a successfully saved reservation.
       void fetch(`/api/verification/${booking.booking_id}/prescreen`, {
@@ -1592,9 +1598,13 @@ export function BookingCheckout({
                     <ShieldCheck size={18} aria-hidden="true" />
                     <h3>Before you confirm</h3>
                   </div>
-                  <SignaturePad
-                    value={signatureStrokes}
-                    onChange={setSignatureStrokes}
+                  <SignatureChoice
+                    method={signatureMethod}
+                    onMethod={setSignatureMethod}
+                    strokes={signatureStrokes}
+                    onStrokes={setSignatureStrokes}
+                    image={signatureImage}
+                    onImage={setSignatureImage}
                   />
                   <TermsAcceptance
                     acceptedVersion={acceptedTermsVersion}
@@ -1988,6 +1998,10 @@ function friendlyCheckoutError(error: unknown) {
     "Use a supported",
     "Complete the",
     "Your document could not",
+    "Your upload session",
+    "This document could not",
+    "This booking has expired",
+    "Secure upload is temporarily",
     "We couldn’t",
     "Accept the",
     "The unfinished request could not",
