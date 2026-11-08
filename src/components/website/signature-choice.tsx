@@ -9,6 +9,7 @@ export function SignatureChoice({
   onStrokes,
   image,
   onImage,
+  readOnly = false,
 }: {
   method: "drawn" | "uploaded";
   onMethod: (method: "drawn" | "uploaded") => void;
@@ -16,6 +17,7 @@ export function SignatureChoice({
   onStrokes: (value: SignatureStrokes) => void;
   image: string;
   onImage: (value: string) => void;
+  readOnly?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const selection = useRef(0);
@@ -67,6 +69,48 @@ export function SignatureChoice({
       if (current === selection.current) setLoading(false);
     }
   }
+  if (readOnly)
+    return (
+      <div
+        className="border-deep-teal/15 mt-4 rounded-2xl border bg-white p-4"
+        style={{ touchAction: "pan-y" }}
+      >
+        <p className="text-deep-teal text-sm font-bold">Your saved signature</p>
+        {method === "uploaded" ? (
+          /* Private inline preview, never sent to an image proxy. */
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={image}
+            alt="Your saved signature"
+            className="mx-auto mt-3 max-h-36 max-w-full object-contain"
+          />
+        ) : (
+          <svg
+            role="img"
+            aria-label="Your saved drawn signature"
+            viewBox="0 0 600 180"
+            className="mx-auto mt-3 max-h-36 w-full max-w-lg"
+          >
+            {strokes.map((stroke, index) => (
+              <polyline
+                key={index}
+                points={stroke
+                  .map((p) => `${p.x * 600},${p.y * 180}`)
+                  .join(" ")}
+                fill="none"
+                stroke="#153f40"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
+        )}
+        <p className="text-muted mt-2 text-xs">
+          Saved with your accepted rental terms.
+        </p>
+      </div>
+    );
   return (
     <div className="mt-5">
       <h4 className="text-deep-teal font-bold">Your signature</h4>

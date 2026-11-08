@@ -1486,7 +1486,7 @@ export function BookingCheckout({
                 />
               </div>
             )}
-            {step === 4 && !(bookingId && paymentMethod === "online") && (
+            {step === 4 && (
               <div className="reservation-review">
                 <header className="rider-details-header">
                   <span className="rider-details-icon">
@@ -1495,7 +1495,11 @@ export function BookingCheckout({
                   <div>
                     <p className="rider-details-eyebrow">The final check</p>
                     <h2>Your adventure, almost ready.</h2>
-                    <p>Review your details before sending your reservation.</p>
+                    <p>
+                      {bookingId
+                        ? "Your signed booking is saved. Complete your payment below."
+                        : "Review your details before sending your reservation."}
+                    </p>
                   </div>
                 </header>
                 <div className="review-total-banner">
@@ -1525,16 +1529,18 @@ export function BookingCheckout({
                     !!serviceConfig?.qrph_ready
                   }
                   cashEnabled={serviceConfig?.cash_enabled !== false}
-                  disabled={busy}
+                  disabled={busy || !!bookingId}
                   onChange={setPaymentMethod}
                 />
                 <section className="review-reservation-card">
                   <div className="review-card-heading">
                     <UserRound size={18} aria-hidden="true" />
                     <h3>Your booking details</h3>
-                    <button type="button" onClick={() => setStep(2)}>
-                      Edit details
-                    </button>
+                    {!bookingId && (
+                      <button type="button" onClick={() => setStep(2)}>
+                        Edit details
+                      </button>
+                    )}
                   </div>
                   <div className="review-ride-line">
                     <span>{motorcycle.model}</span>
@@ -1596,84 +1602,87 @@ export function BookingCheckout({
                 <section className="review-consent">
                   <div className="review-card-heading">
                     <ShieldCheck size={18} aria-hidden="true" />
-                    <h3>Before you confirm</h3>
+                    <h3>
+                      {bookingId
+                        ? "Your signed agreement"
+                        : "Before you confirm"}
+                    </h3>
                   </div>
-                  <SignatureChoice
-                    method={signatureMethod}
-                    onMethod={setSignatureMethod}
-                    strokes={signatureStrokes}
-                    onStrokes={setSignatureStrokes}
-                    image={signatureImage}
-                    onImage={setSignatureImage}
-                  />
-                  <TermsAcceptance
-                    acceptedVersion={acceptedTermsVersion}
-                    onChange={setAcceptedTermsVersion}
-                  />
-                  <label className="text-muted mt-5 flex gap-3 text-sm leading-6">
-                    <input
-                      required
-                      type="checkbox"
-                      checked={consented}
-                      onChange={(event) => setConsented(event.target.checked)}
-                      className="accent-ocean mt-1"
+                  <fieldset
+                    disabled={busy || !!bookingId}
+                    className="min-w-0 border-0 p-0"
+                  >
+                    <SignatureChoice
+                      readOnly={!!bookingId}
+                      method={signatureMethod}
+                      onMethod={setSignatureMethod}
+                      strokes={signatureStrokes}
+                      onStrokes={setSignatureStrokes}
+                      image={signatureImage}
+                      onImage={setSignatureImage}
                     />
-                    I confirm the information is accurate, consent to
-                    verification processing, and understand KJM staff must
-                    approve this request.
-                  </label>
+                    <TermsAcceptance
+                      acceptedVersion={acceptedTermsVersion}
+                      onChange={setAcceptedTermsVersion}
+                    />
+                    <label className="text-muted mt-5 flex gap-3 text-sm leading-6">
+                      <input
+                        required
+                        type="checkbox"
+                        checked={consented}
+                        onChange={(event) => setConsented(event.target.checked)}
+                        className="accent-ocean mt-1"
+                      />
+                      I confirm the information is accurate, consent to
+                      verification processing, and understand KJM staff must
+                      approve this request.
+                    </label>
+                  </fieldset>
                   <details className="review-privacy">
                     <summary>How we use your information</summary>
                     <p>{settings?.privacy_notice}</p>
                   </details>
                 </section>
-                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                {!bookingId && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
                   <div className="mt-5">
                     <TurnstileChallenge onToken={setCaptchaToken} />
                   </div>
                 )}
-              </div>
-            )}
-            {step === 4 && bookingId && paymentMethod === "online" && (
-              <div className="py-5">
-                <h2 className="text-deep-teal text-2xl font-bold">
-                  Complete your payment
-                </h2>
-                <p className="text-muted mt-2 text-sm">
-                  Reference {reference}. Your slot is reserved while payment is
-                  pending.
-                </p>
-                <PaymentMethodChoice
-                  value="online"
-                  methods={onlineMethods}
-                  onlineEnabled={onlineEnabled}
-                  cashEnabled={serviceConfig?.cash_enabled !== false}
-                  disabled
-                  onChange={setPaymentMethod}
-                />
-                <InlineQrPayment
-                  bookingId={bookingId}
-                  initial={inlinePayment}
-                  onPaid={(result) => {
-                    setInlinePayment(result);
-                    setReservationStatus(result.bookingStatus ?? "pending");
-                    setStep(5);
-                  }}
-                />
-                {paymentMessage && (
-                  <p role="status" className="mt-3 text-sm">
-                    {paymentMessage}
-                  </p>
-                )}
-                {!inlinePayment?.qrImage && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void payOnline(bookingId)}
-                    className="bg-ocean mt-4 rounded-full px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    {busy ? "Preparing payment…" : "Show payment QR"}
-                  </button>
+                {bookingId && paymentMethod === "online" && (
+                  <div className="py-5">
+                    <h2 className="text-deep-teal text-2xl font-bold">
+                      Complete your payment
+                    </h2>
+                    <p className="text-muted mt-2 text-sm">
+                      Reference {reference}. Your slot is reserved while payment
+                      is pending.
+                    </p>
+                    <InlineQrPayment
+                      showStatusLink={false}
+                      bookingId={bookingId}
+                      initial={inlinePayment}
+                      onPaid={(result) => {
+                        setInlinePayment(result);
+                        setReservationStatus(result.bookingStatus ?? "pending");
+                        setStep(5);
+                      }}
+                    />
+                    {paymentMessage && (
+                      <p role="status" className="mt-3 text-sm">
+                        {paymentMessage}
+                      </p>
+                    )}
+                    {!inlinePayment?.qrImage && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void payOnline(bookingId)}
+                        className="bg-ocean mt-4 rounded-full px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+                      >
+                        {busy ? "Preparing payment…" : "Show payment QR"}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -1785,11 +1794,13 @@ export function BookingCheckout({
             {busy && step === 4 && (
               <div className="minimal-transfer" role="status">
                 <p>
-                  {uploadProgress.total
-                    ? `Secure uploads: ${uploadProgress.completed} of ${uploadProgress.total}`
-                    : "Validating your reservation…"}
+                  {bookingId
+                    ? "Preparing payment QR…"
+                    : uploadProgress.total
+                      ? `Secure uploads: ${uploadProgress.completed} of ${uploadProgress.total}`
+                      : "Validating your reservation…"}
                 </p>
-                {uploadProgress.total > 0 && (
+                {!bookingId && uploadProgress.total > 0 && (
                   <progress
                     max={uploadProgress.total}
                     value={uploadProgress.completed}
@@ -1887,7 +1898,7 @@ export function BookingCheckout({
                   {busy
                     ? "Submitting…"
                     : paymentMethod === "online"
-                      ? "Continue to Secure Payment"
+                      ? "Confirm & show payment QR"
                       : "Confirm Booking"}
                 </button>
               ) : (
