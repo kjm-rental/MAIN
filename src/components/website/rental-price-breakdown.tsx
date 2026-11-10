@@ -12,10 +12,16 @@ export function RentalPriceBreakdown({ value }: { value: unknown }) {
       ))}
       {pricing.mode !== "legacy" && (
         <p className="text-xs text-slate-500">
-          Minimum rental: 24 hours. Additional partial hours round up. The
-          configured hourly extension limit is {pricing.maxExtensionHours}{" "}
-          hours. Hourly charges are capped at the next applicable complete
-          rental period.
+          {pricing.extensionPolicy ? (
+            "Minimum rental: 24 hours. Hourly extensions cost 10% of the daily rate per started hour, up to 2 hours. More than 2 hours is billed as another full rental day."
+          ) : (
+            <>
+              Minimum rental: 24 hours. Additional partial hours round up. The
+              configured hourly extension limit is {pricing.maxExtensionHours}{" "}
+              hours. Hourly charges are capped at the next applicable complete
+              rental period.
+            </>
+          )}
         </p>
       )}
     </div>

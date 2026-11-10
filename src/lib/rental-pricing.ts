@@ -2,18 +2,22 @@ import { z } from "zod";
 export const rentalPricingSchema = z
   .object({
     version: z.literal(1),
+    extensionPolicy: z.literal("ten_percent_two_hours").optional(),
     mode: z.enum(["legacy", "hourly", "next_period"]),
     completeDays: z.number().int().nonnegative().optional(),
     baseDays: z.number().int().nonnegative(),
-    baseChargePhp: z.number().int().nonnegative(),
+    baseChargePhp: z.number().nonnegative().multipleOf(0.01),
     additionalHours: z.number().int().min(0).max(24),
-    hourlyRatePhp: z.number().int().positive().nullable(),
-    extensionChargePhp: z.number().int().nonnegative(),
-    totalPhp: z.number().int().nonnegative(),
+    hourlyRatePhp: z.number().nonnegative().multipleOf(0.01).nullable(),
+    extensionChargePhp: z.number().nonnegative().multipleOf(0.01),
+    totalPhp: z.number().nonnegative().multipleOf(0.01),
     maxExtensionHours: z.number().int().min(0).max(23).optional(),
   })
   .refine(
-    (p) => p.baseChargePhp + p.extensionChargePhp === p.totalPhp,
+    (p) =>
+      Math.round(p.baseChargePhp * 100) +
+        Math.round(p.extensionChargePhp * 100) ===
+      Math.round(p.totalPhp * 100),
     "Invalid pricing breakdown",
   );
 export type RentalPricing = z.infer<typeof rentalPricingSchema>;
@@ -34,6 +38,14 @@ export function rentalPricingRows(value: unknown): [string, string][] {
       `Base rental · ${p.baseDays} ${p.mode === "legacy" ? "billed units" : "day(s)"}`,
       money(p.baseChargePhp),
     ],
+    ...(p.extensionPolicy && p.additionalHours > 0
+      ? [
+          [
+            "Extension policy",
+            "10% of the daily rate per hour, up to 2 hours; over 2 hours bills another full rental day.",
+          ] as [string, string],
+        ]
+      : []),
     ...(p.mode !== "legacy"
       ? [
           ["Additional time", `${p.additionalHours} hour(s), rounded up`] as [
@@ -50,7 +62,9 @@ export function rentalPricingRows(value: unknown): [string, string][] {
             "Extension charge",
             p.mode === "next_period"
               ? "Included in next complete period above"
-              : `${money(p.extensionChargePhp)} (capped at next period)`,
+              : p.extensionPolicy
+                ? money(p.extensionChargePhp)
+                : `${money(p.extensionChargePhp)} (capped at next period)`,
           ] as [string, string],
         ]
       : []),

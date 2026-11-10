@@ -68,3 +68,46 @@ it("keeps hourly extension inside the existing rental amount", () => {
 });
 it("does not present pending service fees as an agreed total", () =>
   expect(markup({ servicesPending: true })).toContain("Quote pending"));
+it("explains that extensions over two hours are included as another full day", () => {
+  const html = markup({
+    rentalCentavos: 140000,
+    totalCentavos: 140000,
+    pricing: {
+      version: 1,
+      extensionPolicy: "ten_percent_two_hours",
+      mode: "next_period",
+      baseDays: 2,
+      baseChargePhp: 1400,
+      additionalHours: 4,
+      hourlyRatePhp: 70,
+      extensionChargePhp: 0,
+      totalPhp: 1400,
+      maxExtensionHours: 2,
+    },
+  });
+  expect(html).toContain("Extra time billed as 1 full rental day");
+  expect(html).toContain("The extension exceeds 2 hours");
+  expect(html).not.toContain("4 hours ×");
+  expect(html).not.toContain("₱0.00");
+});
+it("shows centavo-precise hourly charges without rounding to whole pesos", () => {
+  const html = markup({
+    rentalCentavos: 54890,
+    totalCentavos: 54890,
+    pricing: {
+      version: 1,
+      extensionPolicy: "ten_percent_two_hours",
+      mode: "hourly",
+      baseDays: 1,
+      baseChargePhp: 499,
+      additionalHours: 1,
+      hourlyRatePhp: 49.9,
+      extensionChargePhp: 49.9,
+      totalPhp: 548.9,
+      maxExtensionHours: 2,
+    },
+  });
+  expect(html).toContain("₱49.90");
+  expect(html).toContain("₱548.90");
+  expect(html).toContain("10% of the daily rate");
+});

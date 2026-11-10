@@ -1,0 +1,13 @@
+# Owner extension pricing — November 10, 2026
+
+New rental quotes use 10% of the motorcycle's daily rate per started extension hour, up to 2 hours after complete 24-hour periods. More than 2 hours bills another full rental day. Partial hours continue to round up. Existing daily/weekly/monthly package selection remains in place for complete rental days. Hourly charges use the specified percentage rather than the old optional package cap. Minimum rental remains 24 hours.
+
+Examples at ₱700/day: 24h = ₱700; 25h = ₱770; 26h = ₱840; 26h + 1 second and 28h = ₱1,400. At ₱499/day, 25h = ₱548.90 and 26h = ₱598.80. At ₱599/day, the hourly rate is ₱59.90.
+
+Migration 049 preserves the price and JSON snapshot of every existing booking. PHP base/final totals and manual adjustments support centavo precision; generated integer-centavo totals remain the payment/ledger interface. Quote wrappers, guest division and manual quote/save paths retain precision. Hourly model rates are derived automatically from daily rates; the owner policy has a two-hour limit. Prior private/public function execute privileges are restored when changing PHP-returning functions to numeric. No CASCADE is used. Existing booking totals and snapshots are asserted unchanged before committing.
+
+MAIN and ADMIN accept both historical and new snapshot formats. Only new snapshots identify `ten_percent_two_hours`; historical pricing keeps its original explanation. Customer summaries explain next-day billing instead of showing a zero hourly fee for a 4-hour extension. Admin settings explain the fixed policy, and model forms no longer accept an independent hourly price. Shared pricing rows carry the policy into Admin, contracts and notifications.
+
+Validation: rollback-only migration and integration rehearsal, arithmetic at 0/1/2 hours and 2 hours + 1 second, fractional rates, public V4 quote, guest submission, drawn-signature finalization, Admin quote/save, private/public execute permissions, and preserved historical amounts. Synthetic records are rolled back and no provider request or payment is made. `checks-rollback.sql` runs against the migrated schema. Both full application suites, lint and production builds passed (498 MAIN tests, 524 ADMIN tests).
+
+Before applying the migration, a private configuration/function/booking-price backup was saved outside the repositories at `/Users/mac/KJM-Backups/extension-policy-20261110/`. Apply migration 049 before publishing the matching application changes, then run the rollback check again. Existing saved bookings are never repriced by this rollout; explicit later date/model edits retain their existing repricing workflow.

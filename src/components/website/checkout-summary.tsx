@@ -65,11 +65,21 @@ export function CheckoutSummary(p: CheckoutSummaryProps) {
             <div className="bg-sand/40 rounded-lg px-3 py-2 text-xs">
               <p className="flex justify-between gap-3">
                 <span>
-                  Includes {pricing.additionalHours} additional{" "}
-                  {pricing.additionalHours === 1 ? "hour" : "hours"}
+                  {pricing.mode === "next_period" ? (
+                    "Extra time billed as 1 full rental day"
+                  ) : (
+                    <>
+                      Includes {pricing.additionalHours} additional{" "}
+                      {pricing.additionalHours === 1 ? "hour" : "hours"}
+                    </>
+                  )}
                 </span>
                 <strong>
-                  {formatCentavos(pricing.extensionChargePhp * 100)}
+                  {pricing.mode === "next_period"
+                    ? "Included"
+                    : formatCentavos(
+                        Math.round(pricing.extensionChargePhp * 100),
+                      )}
                 </strong>
               </p>
               <details className="mt-1">
@@ -77,10 +87,31 @@ export function CheckoutSummary(p: CheckoutSummaryProps) {
                   View calculation
                 </summary>
                 <p className="mt-2 leading-5">
-                  {pricing.additionalHours} hours ×{" "}
-                  {formatCentavos((pricing.hourlyRatePhp ?? 0) * 100)}/hour.
-                  Partial hours round up; the extension is capped at the next
-                  complete rental period.
+                  {pricing.extensionPolicy ? (
+                    pricing.mode === "next_period" ? (
+                      "The extension exceeds 2 hours, so the rental amount includes another full day."
+                    ) : (
+                      <>
+                        {pricing.additionalHours}{" "}
+                        {pricing.additionalHours === 1 ? "hour" : "hours"} ×{" "}
+                        {formatCentavos(
+                          Math.round((pricing.hourlyRatePhp ?? 0) * 100),
+                        )}
+                        /hour (10% of the daily rate). Up to 2 hours; more than
+                        2 hours is billed as another full day. Partial hours
+                        round up.
+                      </>
+                    )
+                  ) : (
+                    <>
+                      {pricing.additionalHours} hours ×{" "}
+                      {formatCentavos(
+                        Math.round((pricing.hourlyRatePhp ?? 0) * 100),
+                      )}
+                      /hour. Partial hours round up; the extension is capped at
+                      the next complete rental period.
+                    </>
+                  )}
                 </p>
               </details>
             </div>

@@ -41,6 +41,24 @@ it("does not manufacture hourly charges for legacy bookings", () => {
 });
 it("rejects inconsistent saved breakdowns", () =>
   expect(parseRentalPricing({ ...saved, totalPhp: 1 })).toBeNull());
+it("retains exact fractional PHP amounts for the owner’s 10% policy", () => {
+  const price = {
+    ...saved,
+    extensionPolicy: "ten_percent_two_hours",
+    baseDays: 1,
+    baseChargePhp: 599,
+    additionalHours: 2,
+    hourlyRatePhp: 59.9,
+    extensionChargePhp: 119.8,
+    totalPhp: 718.8,
+    maxExtensionHours: 2,
+  };
+  expect(parseRentalPricing(price)?.totalPhp).toBe(718.8);
+  const rows = rentalPricingRows(price).flat().join(" ");
+  expect(rows).toContain("₱59.90/hour");
+  expect(rows).toContain("₱119.80");
+  expect(rows).not.toContain("capped");
+});
 it("leaves pricing inactive until an explicit policy and model rate exist", () => {
   expect(sql).toContain(
     "if limit_hours is null or model.hourly_extension_rate_php is null then",
