@@ -130,10 +130,10 @@ export default function ContactPage() {
                 />
                 <div className="min-w-0">
                   <h3 className="text-muted text-xs font-bold">
-                    Registered Business Address
+                    Visit Our Branch
                   </h3>
                   <p className="text-deep-teal mt-2 text-sm leading-6">
-                    {businessContact.address}
+                    {businessContact.branchAddress}
                   </p>
                   <a
                     href={directionsUrl}

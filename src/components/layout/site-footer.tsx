@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Mail, MapPin, Phone, MessageCircle } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CurrentYear } from "@/components/ui/current-year";
-import { businessContact } from "@/lib/content/business-contact";
+import { businessContact, directionsUrl } from "@/lib/content/business-contact";
 
 const groups = [
   {
@@ -111,15 +111,20 @@ export function SiteFooter() {
                 {businessContact.email}
               </span>
             </a>
-            <div className="mt-2 flex items-start gap-2.5">
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 flex min-h-11 items-start gap-2.5 hover:underline"
+            >
               <MapPin className="mt-1 size-3.5 shrink-0" aria-hidden="true" />
               <p>
                 <span className="mb-1 block text-[10px] font-medium tracking-wide uppercase">
-                  Registered business address
+                  Branch location · Get directions
                 </span>
-                {businessContact.address}
+                {businessContact.branchAddress}
               </p>
-            </div>
+            </a>
           </address>
           <a
             href="https://wa.me/639752984845"
